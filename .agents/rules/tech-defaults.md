@@ -42,3 +42,10 @@
 - Khi thêm env var, cập nhật `.env.example` bằng placeholder an toàn và cập nhật
   config validation/access tương ứng; không sao chép giá trị từ `.env`.
 
+## System Configuration & Feature Flags
+
+- Mọi tính năng mới, cấu hình tích hợp (OAuth, Discord, Webhook, Bot, Email), cờ tính năng (Feature Flags), thông số giới hạn nghiệp vụ hoặc cấu hình công khai, **BẮT BUỘC** phải:
+  1. Khai báo key và giá trị mặc định trong `src/common/constants/system-config.constant.ts` (`FEATURE_FLAGS`, `DEFAULT_SYSTEM_CONFIGS`).
+  2. Bổ sung vào bước seed trong `prisma/seed.ts` để đồng bộ vào bảng `system_configs`.
+  3. Đảm bảo Admin có thể quản trị động qua `/api/v1/system/*` và Client có thể bootstrap qua `GET /api/v1/system/public` mà không cần redeploy code.
+

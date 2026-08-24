@@ -8,6 +8,8 @@ import { registerMaintenanceOpenApi } from '../modules/maintenance/maintenance.o
 import { registerIntegrationOpenApi } from '../modules/integration/integration.openapi';
 import { registerSystemConfigOpenApi } from '../modules/system-config/system-config.openapi';
 import { registerCronOpenApi } from '../modules/cron/cron.openapi';
+import { registerCategoryOpenApi } from '../modules/category/category.openapi';
+import { registerKeyboardOpenApi } from '../modules/keyboard/keyboard.openapi';
 import { registerHealthOpenApi } from '../routes/health.openapi';
 
 // Tự động khởi tạo và đăng ký 100% routes & schemas từ Zod validation schemas
@@ -19,6 +21,8 @@ registerMaintenanceOpenApi();
 registerIntegrationOpenApi();
 registerSystemConfigOpenApi();
 registerCronOpenApi();
+registerCategoryOpenApi();
+registerKeyboardOpenApi();
 registerHealthOpenApi();
 
 

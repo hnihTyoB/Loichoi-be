@@ -1,6 +1,11 @@
+import crypto from 'crypto';
 import { prisma } from '../../database/prisma.client';
 import { AppError } from '../../common/errors/app-error';
 import { ERROR_CODE } from '../../common/errors/error-code';
+
+function hashToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
 
 export class AuthRepository {
   findByEmail(email: string) {
@@ -21,7 +26,7 @@ export class AuthRepository {
     return prisma.refreshToken.create({
       data: {
         userId,
-        token,
+        token: hashToken(token),
         expiresAt,
         userAgent,
         ipAddress,
@@ -31,13 +36,13 @@ export class AuthRepository {
 
   async findRefreshToken(token: string) {
     return prisma.refreshToken.findUnique({
-      where: { token },
+      where: { token: hashToken(token) },
     });
   }
 
   async deleteRefreshToken(token: string) {
     return prisma.refreshToken.deleteMany({
-      where: { token },
+      where: { token: hashToken(token) },
     });
   }
 
@@ -58,8 +63,19 @@ export class AuthRepository {
     return socialAccount?.user || null;
   }
 
+  async createSocialAccount(data: { userId: string; provider: string; providerUserId: string }) {
+    return prisma.userSocial.create({
+      data: {
+        userId: data.userId,
+        provider: data.provider,
+        providerUserId: data.providerUserId,
+      },
+    });
+  }
+
   async createSocialUser(data: {
     fullName?: string;
+    email?: string;
     avatarUrl?: string;
     roleId: string;
     provider: string;
@@ -67,6 +83,7 @@ export class AuthRepository {
   }) {
     return prisma.user.create({
       data: {
+        email: data.email,
         fullName: data.fullName,
         avatarUrl: data.avatarUrl,
         roleId: data.roleId,
@@ -272,9 +289,12 @@ export class AuthRepository {
   }
 
   async rotateRefreshToken(userId: string, oldToken: string, newToken: string, expiresAt: Date, userAgent?: string, ipAddress?: string) {
+    const oldTokenHash = hashToken(oldToken);
+    const newTokenHash = hashToken(newToken);
+
     return prisma.$transaction(async (tx) => {
       const deleted = await tx.refreshToken.deleteMany({
-        where: { token: oldToken },
+        where: { token: oldTokenHash },
       });
 
       if (deleted.count === 0) {
@@ -287,7 +307,7 @@ export class AuthRepository {
       return tx.refreshToken.create({
         data: {
           userId,
-          token: newToken,
+          token: newTokenHash,
           expiresAt,
           userAgent,
           ipAddress,

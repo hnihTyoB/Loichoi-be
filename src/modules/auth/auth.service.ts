@@ -14,6 +14,7 @@ import { NOTIFICATION_TYPE, NOTIFICATION_PRIORITY } from '../../common/constants
 import { notificationDispatcher } from '../../common/services/notification-dispatcher.service';
 import { generateDeviceHash, parseUserAgent } from '../../common/helpers/user-agent.helper';
 import { permissionCacheService } from '../../common/services/permission-cache.service';
+import { discordOAuthService } from './discord-oauth.service';
 
 export class AuthService {
   private readonly repository = new AuthRepository();
@@ -452,5 +453,100 @@ export class AuthService {
     }
 
     return newAvatarUrl;
+  }
+
+  getDiscordAuthUrl(redirectUri?: string, nonce?: string): { url: string; state: string } {
+    const state = discordOAuthService.generateState(redirectUri, nonce);
+    const url = discordOAuthService.getAuthorizationUrl(state, redirectUri);
+    return { url, state };
+  }
+
+  async handleDiscordCallback(
+    code: string,
+    state: string,
+    metadata?: { userAgent?: string; ipAddress?: string },
+    expectedNonce?: string,
+  ): Promise<LoginResponseDto & { returnUrl?: string }> {
+    const stateVerification = discordOAuthService.verifyAndConsumeState(state, expectedNonce);
+    if (!stateVerification.isValid) {
+      throw new AppError('Mã trạng thái OAuth không hợp lệ, đã hết hạn hoặc không khớp phiên đăng nhập', 400, ERROR_CODE.OAUTH_STATE_INVALID);
+    }
+
+    const discordAccessToken = await discordOAuthService.exchangeCodeForToken(code, stateVerification.redirectUri);
+    const profile = await discordOAuthService.fetchUserProfile(discordAccessToken);
+
+    let user = await this.repository.findBySocial('DISCORD', profile.id);
+
+    if (user) {
+      if (!user.isActive) {
+        throw new AppError('Tài khoản của bạn đã bị vô hiệu hóa', 403, ERROR_CODE.USER_INACTIVE);
+      }
+    } else {
+      // Chỉ tự động liên kết tài khoản khi email Discord ĐÃ ĐƯỢC XÁC MINH (profile.verified === true)
+      if (profile.email && profile.verified === true) {
+        const existingByEmail = await this.repository.findByEmail(profile.email);
+        if (existingByEmail) {
+          if (!existingByEmail.isActive) {
+            throw new AppError('Tài khoản của bạn đã bị vô hiệu hóa', 403, ERROR_CODE.USER_INACTIVE);
+          }
+          // Link discord to existing verified user
+          await this.repository.createSocialAccount({
+            userId: existingByEmail.id,
+            provider: 'DISCORD',
+            providerUserId: profile.id,
+          });
+          user = existingByEmail;
+        }
+      }
+
+      if (!user) {
+        const defaultRole = await this.repository.findRoleByName(ROLES.USER);
+        if (!defaultRole) {
+          throw new AppError('Default role not found', 500, ERROR_CODE.INTERNAL_SERVER_ERROR);
+        }
+
+        const avatarUrl = discordOAuthService.getAvatarUrl(profile);
+        user = await this.repository.createSocialUser({
+          fullName: profile.global_name || profile.username,
+          email: profile.email || undefined,
+          avatarUrl: avatarUrl || undefined,
+          roleId: defaultRole.id,
+          provider: 'DISCORD',
+          providerUserId: profile.id,
+        });
+      }
+    }
+
+    const payload = { id: user.id, email: user.email, role: user.role.name, roleId: user.roleId };
+
+    const accessToken = jwt.sign(payload, jwtConfig.accessSecret, {
+      expiresIn: jwtConfig.accessExpiresIn as jwt.SignOptions['expiresIn'],
+    });
+
+    const refreshToken = jwt.sign(
+      { ...payload, jti: crypto.randomUUID() },
+      jwtConfig.refreshSecret,
+      { expiresIn: jwtConfig.refreshExpiresIn as jwt.SignOptions['expiresIn'] }
+    );
+
+    const decoded = jwt.decode(refreshToken) as { exp: number };
+    const expiresAt = new Date(decoded.exp * 1000);
+    await this.repository.saveRefreshToken(user.id, refreshToken, expiresAt, metadata?.userAgent, metadata?.ipAddress);
+
+    const permissions = await permissionCacheService.getRolePermissions(user.roleId);
+
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role.name,
+        roleId: user.roleId,
+        permissions: Array.from(permissions),
+      },
+      returnUrl: stateVerification.redirectUri,
+    };
   }
 }

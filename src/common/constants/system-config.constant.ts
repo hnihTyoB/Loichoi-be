@@ -13,6 +13,10 @@ export const FEATURE_FLAGS = {
   WEBHOOKS_ENABLED: 'feature.webhooks.enabled',
   AI_ENABLED: 'feature.ai.enabled',
   SOCIAL_LOGIN_ENABLED: 'feature.social_login.enabled',
+  DISCORD_LOGIN_ENABLED: 'feature.discord_login.enabled',
+  DISCORD_GATED_DOWNLOAD: 'feature.discord_gated_download.enabled',
+  THEME_ANNOUNCEMENT_WEBHOOK: 'feature.theme_announcement_webhook.enabled',
+  TIER_DOWNLOAD_QUOTA: 'feature.tier_download_quota.enabled',
 } as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAGS)[keyof typeof FEATURE_FLAGS];
@@ -20,7 +24,7 @@ export type FeatureFlagKey = (typeof FEATURE_FLAGS)[keyof typeof FEATURE_FLAGS];
 export const DEFAULT_SYSTEM_CONFIGS = [
   {
     key: 'app.name',
-    value: 'Backend Template Platform',
+    value: 'Keyboard Theme Library',
     description: 'Tên ứng dụng hiển thị công khai',
     category: SYSTEM_CONFIG_CATEGORY.GENERAL,
     isPublic: true,
@@ -43,6 +47,55 @@ export const DEFAULT_SYSTEM_CONFIGS = [
     key: 'app.locale',
     value: 'vi-VN',
     description: 'Ngôn ngữ và định dạng vùng mặc định (Tiếng Việt)',
+    category: SYSTEM_CONFIG_CATEGORY.GENERAL,
+    isPublic: true,
+  },
+  {
+    key: 'discord.invite_url',
+    value: 'https://discord.gg',
+    description: 'Đường dẫn liên kết mời gia nhập Discord Server cộng đồng',
+    category: SYSTEM_CONFIG_CATEGORY.INTEGRATION,
+    isPublic: true,
+  },
+  {
+    key: 'discord.vip_role_ids',
+    value: ['123456789012345678'],
+    description: 'Danh sách Discord Role IDs được hưởng đặc quyền VIP / Server Booster (tải không giới hạn)',
+    category: SYSTEM_CONFIG_CATEGORY.INTEGRATION,
+    isPublic: false,
+  },
+  {
+    key: 'keyboard.download_rate_limit_per_minute',
+    value: 5,
+    description: 'Giới hạn số lượt yêu cầu tải theme tối đa trên 1 phút cho mỗi người dùng',
+    category: SYSTEM_CONFIG_CATEGORY.GENERAL,
+    isPublic: false,
+  },
+  {
+    key: 'keyboard.default_page_size',
+    value: 20,
+    description: 'Số lượng theme mặc định hiển thị trên mỗi trang danh mục',
+    category: SYSTEM_CONFIG_CATEGORY.GENERAL,
+    isPublic: true,
+  },
+  {
+    key: 'keyboard.tier_free_download_limit',
+    value: 10,
+    description: 'Số lượng theme tối đa mà Free User (chưa tham gia Discord Server) được phép tải',
+    category: SYSTEM_CONFIG_CATEGORY.GENERAL,
+    isPublic: true,
+  },
+  {
+    key: 'keyboard.tier_member_download_limit',
+    value: 50,
+    description: 'Số lượng theme tối đa mà Thành viên Discord Server được phép tải',
+    category: SYSTEM_CONFIG_CATEGORY.GENERAL,
+    isPublic: true,
+  },
+  {
+    key: 'keyboard.quota_reset_cycle',
+    value: 'MONTHLY',
+    description: 'Chu kỳ tự động làm mới hạn mức tải về (MONTHLY: hàng tháng, LIFETIME: trọn đời)',
     category: SYSTEM_CONFIG_CATEGORY.GENERAL,
     isPublic: true,
   },
@@ -81,6 +134,27 @@ export const DEFAULT_SYSTEM_CONFIGS = [
     description: 'Bật tính năng đăng nhập mạng xã hội (Google, Zalo)',
     category: SYSTEM_CONFIG_CATEGORY.FEATURE_FLAG,
     isPublic: true,
+  },
+  {
+    key: FEATURE_FLAGS.DISCORD_LOGIN_ENABLED,
+    value: true,
+    description: 'Bật tính năng đăng nhập bằng tài khoản Discord',
+    category: SYSTEM_CONFIG_CATEGORY.FEATURE_FLAG,
+    isPublic: true,
+  },
+  {
+    key: FEATURE_FLAGS.DISCORD_GATED_DOWNLOAD,
+    value: true,
+    description: 'Bật cơ chế kiểm tra thành viên Discord Server và Role trước khi cấp quyền tải theme',
+    category: SYSTEM_CONFIG_CATEGORY.FEATURE_FLAG,
+    isPublic: true,
+  },
+  {
+    key: FEATURE_FLAGS.THEME_ANNOUNCEMENT_WEBHOOK,
+    value: true,
+    description: 'Tự động gửi thông báo Rich Embed lên Discord Server khi theme mới được phát hành',
+    category: SYSTEM_CONFIG_CATEGORY.FEATURE_FLAG,
+    isPublic: false,
   },
 ] as const;
 

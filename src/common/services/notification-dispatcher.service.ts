@@ -9,6 +9,7 @@ import {
 } from '../constants/notification.constant';
 import { renderTemplateString } from '../helpers/template.helper';
 import { notificationRepository } from '../../modules/notification/notification.repository';
+import { sseManagerService } from './sse-manager.service';
 
 export interface WebNotificationPayload {
   type: string;
@@ -128,6 +129,18 @@ class NotificationDispatcher {
       content: payload.content,
       actionUrl: payload.actionUrl,
       metadata: payload.metadata,
+    });
+
+    sseManagerService.sendToUser(userId, {
+      type: 'notification:new',
+      data: {
+        title: payload.title,
+        content: payload.content,
+        type: payload.type,
+        priority: payload.priority || NOTIFICATION_PRIORITY.NORMAL,
+        actionUrl: payload.actionUrl || null,
+        createdAt: new Date().toISOString(),
+      },
     });
   }
 

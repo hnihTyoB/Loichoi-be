@@ -46,23 +46,37 @@ export class R2Service {
   }
 
   /**
-   * Liệt kê các đối tượng trong bucket theo tiền tố (Prefix).
+   * Liệt kê các đối tượng trong bucket theo tiền tố (Prefix) có phân trang đầy đủ.
    */
   async listObjects(prefix?: string): Promise<Array<{ key: string; lastModified?: Date; size?: number }>> {
     try {
-      const command = new ListObjectsV2Command({
-        Bucket: this.bucketName,
-        Prefix: prefix,
-      });
+      const allObjects: Array<{ key: string; lastModified?: Date; size?: number }> = [];
+      let continuationToken: string | undefined = undefined;
 
-      const response = await this.client.send(command);
-      if (!response.Contents) return [];
+      do {
+        const command: ListObjectsV2Command = new ListObjectsV2Command({
+          Bucket: this.bucketName,
+          Prefix: prefix,
+          ContinuationToken: continuationToken,
+        });
 
-      return response.Contents.map((obj) => ({
-        key: obj.Key || '',
-        lastModified: obj.LastModified,
-        size: obj.Size,
-      })).filter((item) => item.key.length > 0);
+        const response = await this.client.send(command);
+        if (response.Contents) {
+          for (const obj of response.Contents) {
+            if (obj.Key && obj.Key.length > 0) {
+              allObjects.push({
+                key: obj.Key,
+                lastModified: obj.LastModified,
+                size: obj.Size,
+              });
+            }
+          }
+        }
+
+        continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
+      } while (continuationToken);
+
+      return allObjects;
     } catch (err: any) {
       console.warn('[R2Service] listObjects failed or bucket not accessible:', err.message);
       return [];

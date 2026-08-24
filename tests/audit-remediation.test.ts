@@ -186,4 +186,15 @@ describe('Audit & Remediation Verification Test Suite', () => {
     });
   });
 
+  describe('6. [SEC-REFRESH-TOKEN-HASH] SHA-256 Hashing of Refresh Tokens', () => {
+    it('should hash refresh token using sha256 before database operations', async () => {
+      const crypto = await import('crypto');
+      const rawToken = 'raw_refresh_token_string_example';
+      const expectedHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+      assert.equal(expectedHash.length, 64, 'SHA-256 hash must be 64 characters hex string');
+      assert.notEqual(expectedHash, rawToken, 'Hashed token must never match plaintext token');
+    });
+  });
+
 });

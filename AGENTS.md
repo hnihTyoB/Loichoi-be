@@ -29,6 +29,7 @@ Trước khi sửa code:
   - Mọi thao tác truy vấn Prisma/database nằm tập trung trong Repository.
 - **Xử lý lỗi**: Dùng `AppError` và `ERROR_CODE` cho các lỗi nghiệp vụ có chủ đích.
 - **Quản lý hằng số & Enums tập trung**: Tuyệt đối KHÔNG hard-code chuỗi ký tự (magic strings) cho các hành động nghiệp vụ, audit log actions, role names, permission names, error codes hay status constants. Mọi giá trị dùng chung hoặc có tính lặp lại phải được định nghĩa trong `src/common/constants/` dưới dạng `as const` kèm exported type (VD: `AUDIT_ACTION`, `AUDIT_TARGET_TYPE`, `PERMISSIONS`, `ROLES`, `ERROR_CODE`).
+- **Đồng bộ System Configuration & Feature Flags**: Mỗi khi thêm tính năng mới, cấu hình tích hợp (OAuth, Discord, Webhook, Bot, Email), cờ tính năng (Feature Flags), thông số giới hạn nghiệp vụ hoặc cấu hình công khai, BẮT BUỘC phải đồng bộ và khai báo trong `SystemConfig` (`src/common/constants/system-config.constant.ts`, `prisma/seed.ts`). Điều này đảm bảo Admin có thể cấu hình động qua `/api/v1/system/*` và Client có thể bootstrap qua `GET /api/v1/system/public` mà không cần redeploy code.
 - **Bảo mật**: Tuyệt đối KHÔNG đọc, ghi log, commit hoặc đưa vào phản hồi giá trị bí mật từ `.env` (JWT secrets, DB credentials, mail passwords, API keys).
 - **Không sửa file sinh tự động**: Không sửa trực tiếp `dist/`, `node_modules/` hoặc migration đã được áp dụng.
 - **Database Safety**: Không chạy reset database (`db:migrate:reset`), xóa dữ liệu hay tạo migration phá hủy nếu chưa có yêu cầu và xác nhận rõ ràng từ người dùng.
