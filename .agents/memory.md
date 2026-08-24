@@ -75,6 +75,7 @@
   - Phân loại theo danh mục: `GENERAL`, `FEATURE_FLAG`, `INTEGRATION`, `SECURITY`.
   - Hỗ trợ đánh giá cờ tính năng tức thời `systemConfigService.isFeatureEnabled(flagKey)` kèm middleware bảo vệ route `requireFeatureFlag('flagKey')`.
   - Tối ưu hóa hiệu năng bằng in-memory TTL caching kết hợp Redis Pub/Sub invalidation (`system_config:events`) và tự động ghi `AuditLog` cho mọi thao tác cấu hình.
+  - **Quy tắc bắt buộc**: Mỗi khi thêm tính năng mới, cấu hình tích hợp (OAuth, Discord, Webhook, Bot, Email), cờ tính năng, thông số giới hạn hoặc cấu hình công khai, **BẮT BUỘC** phải khai báo trong `src/common/constants/system-config.constant.ts` và seed trong `prisma/seed.ts`.
 - **Production Observability & Deep Diagnostics** (`src/routes/health.route.ts` & `src/middlewares/request-id.middleware.ts`):
   - Middleware `requestIdMiddleware` tự động cấp phát và chuyển tiếp header `X-Request-Id` (UUID) phục vụ truy vết phân tán (distributed tracing).
   - Cung cấp `/api/v1/health` (liveness) và `/api/v1/health/readiness` (thực hiện truy vấn kiểm tra PostgreSQL database live, kiểm tra ping Redis, thu thập thông số heapUsedMb, heapTotalMb, rssMb và uptime).
@@ -98,7 +99,49 @@
     3. `cleanup-expired-tokens`: Dọn dẹp Refresh Token, Verification Token và Password Reset Token đã hết hạn.
     4. `daily-summary-digest` & `weekly-summary-digest`: Tổng hợp KPI hệ thống và gửi email báo cáo tới Quản trị viên.
   - Cung cấp REST endpoints `GET /api/v1/cron/jobs` và `POST /api/v1/cron/jobs/:jobName/trigger` cho phép Admin chủ động kích hoạt chạy ngay kèm Audit Log.
-  - Quản lý lifecycle an toàn qua `CronWorker` và `CronQueueService` trong `src/server.ts`.
+- **Keyboard Theme Library & Catalog System** (`src/modules/keyboard/` & `src/modules/category/`):
+  - Hệ thống quản lý thư viện bàn phím phục vụ khám phá, phân loại, tìm kiếm, lọc theo nền tảng (`IOS`, `ANDROID`, `BOTH`), danh mục Many-to-Many (`KeyboardThemeCategory`), và bộ sưu tập ảnh xem trước (`KeyboardImage` có `position`).
+  - Hỗ trợ vòng đời Theme 3 trạng thái: `DRAFT`, `PUBLISHED`, `HIDDEN` với quy tắc chuyển trạng thái chặt chẽ.
+  - Phân tách tuyệt đối Public DTOs (không bao giờ lộ `driveUrl`, audit fields) và Management DTOs (`KEYBOARD_READ`).
+  - Tự động lưu trữ (Archive -> `HIDDEN`) thay vì xóa vật lý khi theme đã có lịch sử tải (`Download` history).
+  - Tự động ghi `AuditLog` cho các hành vi `CREATE_KEYBOARD`, `UPDATE_KEYBOARD`, `DELETE_KEYBOARD`, `ARCHIVE_KEYBOARD`, `CREATE_CATEGORY`, `UPDATE_CATEGORY`, `DELETE_CATEGORY`.
+- **Discord OAuth Authentication** (`src/modules/auth/discord-oauth.service.ts`):
+  - Tích hợp đăng nhập Discord OAuth2 (`identify email`) vào bảng `UserSocial (provider = 'DISCORD')`.
+  - Cơ chế phòng chống CSRF Replay Attack với mã `state` dùng 1 lần và TTL 5 phút.
+  - Tái sử dụng trọn vẹn JWT Access Token, Refresh Token, Cookie và Session flow hiện có.
+- **Download Engine & Security** (`POST /api/v1/keyboards/:slug/download`):
+  - Bắt buộc xác thực tài khoản Active (`authMiddleware`).
+  - Rate Limiting chuyên biệt 5 requests / 1 phút / user (`downloadRateLimiter`).
+  - Thực thi atomic transaction: tạo bản ghi `Download` + tăng `downloadCount` (`increment: 1`) trong Prisma `$transaction`.
+  - Phản hồi **HTTP 302 Found Redirect** tới Google Drive URL; fail-safe 500 khi transaction database lỗi.
+- **Database Migrations & Models**:
+  - Bổ sung migration `20260824160000_add_keyboard_theme_models` cho các bảng `keyboard_themes`, `keyboard_images`, `categories`, `keyboard_theme_categories`, `downloads`.
+  - Tối ưu hóa composite indexes (`[status, published_at]`, `[download_count]`, `[platform]`, `[user_id, created_at]`, `[keyboard_theme_id, created_at]`, `[user_id, keyboard_theme_id]`).
+- **Full Project Audit & Remediation (2026-08-24)**:
+  - Đã khắc phục nhận diện VIP/Booster qua cấu hình `discord.vip_role_ids` trong `SystemConfig`.
+  - Khắc phục kiểm tra tài khoản vô hiệu hóa từ cơ sở dữ liệu khi tải theme (`findUserById`).
+  - Kích hoạt kết nối `.connect()` cho Redis Pub/Sub Subscriber trong `SystemConfigService` và `MaintenanceCacheService` trên cluster.
+  - Chuẩn hóa ranh giới tính hạn mức tải đầu tháng bằng helper `getVietnamDayRange` (UTC+7).
+  - Tích hợp email nguyên tử trong `createSocialUser` cho Discord OAuth.
+  - Tích hợp phát sóng real-time SSE trong `NotificationDispatcher.dispatchWeb`.
+  - Hỗ trợ phân trang `ContinuationToken` cho Cloudflare R2 `listObjects`.
+  - **Discord OAuth Security Hardening**:
+    - Loại bỏ hoàn toàn Access/Refresh tokens khỏi URL redirect query string; tokens chỉ chuyển phát qua HttpOnly Cookie hoặc JSON response body cho API clients.
+    - Ràng buộc mã OAuth `state` với browser session qua HttpOnly `discord_oauth_nonce` cookie để phòng chống triệt để Login CSRF / Session Fixation.
+    - Bắt buộc kiểm tra `profile.verified === true` trước khi auto-link tài khoản Discord vào người dùng hiện có để ngăn chặn Account Takeover.
+    - Bổ sung `AbortSignal.timeout(8000)` cho các lệnh gọi Discord OAuth / Bot API và map đúng mã lỗi 502/504.
+  - **Refresh Token SHA-256 Hashing**:
+    - Băm SHA-256 toàn bộ Refresh Token trước khi lưu trữ và truy vấn trong cơ sở dữ liệu (`refresh_tokens` table), tuân thủ RFC 6819 defense-in-depth.
+  - **Authorization & Inactive Account Interceptor**:
+    - `permissionMiddleware` truy vấn DB trực tiếp để chặn ngay lập tức người dùng bị Admin khóa hoặc hạ quyền, vô hiệu hóa việc lạm dụng JWT cũ.
+  - **Publish Invariant Enforcement**:
+    - Chặn phát hành (PUBLISHED) qua PATCH khi theme không có danh mục hợp lệ.
+  - **Feature Flags Runtime Wiring**:
+    - Đã gắn `requireFeatureFlag(FEATURE_FLAGS.DISCORD_LOGIN_ENABLED)` trên Discord auth route; kiểm tra `FEATURE_FLAGS.DISCORD_GATED_DOWNLOAD` và `FEATURE_FLAGS.THEME_ANNOUNCEMENT_WEBHOOK` trong `KeyboardService`.
+  - **HTTPS Enforcement for Google Drive**:
+    - Ép buộc giao thức `https://` và allowlist chính xác các domain Google Drive hợp lệ.
+
+
 
 
 

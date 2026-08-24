@@ -16,16 +16,21 @@ async function resolveUserPermissions(req: Request): Promise<Set<string>> {
 
   let roleId = req.user.roleId;
 
-  // Fallback: Nếu roleId chưa có trong JWT payload, truy vấn từ repository
-  if (!roleId) {
-    const user = await authRepository.findById(req.user.id);
-
-    if (!user || !user.roleId) {
-      throw new AppError('Forbidden: User role not found', 403, ERROR_CODE.FORBIDDEN);
+  // Xác thực trạng thái người dùng trong cơ sở dữ liệu để chống dùng JWT cũ khi bị khóa/hạ quyền
+  if (!(req as any).apiKey) {
+    const currentUser = await authRepository.findById(req.user.id);
+    if (!currentUser || !currentUser.isActive || currentUser.deletedAt) {
+      throw new AppError('Tài khoản của bạn đã bị vô hiệu hóa hoặc không tồn tại', 401, ERROR_CODE.UNAUTHORIZED);
     }
-
-    roleId = user.roleId;
+    roleId = currentUser.roleId;
     req.user.roleId = roleId;
+    if (currentUser.role) {
+      req.user.role = currentUser.role.name;
+    }
+  }
+
+  if (!roleId) {
+    throw new AppError('Forbidden: User role not found', 403, ERROR_CODE.FORBIDDEN);
   }
 
   const userPermissions = await permissionCacheService.getRolePermissions(roleId);

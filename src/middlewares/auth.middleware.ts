@@ -14,7 +14,7 @@ export function extractTokenFromRequest(req: Request): string | undefined {
   }
   // Only allow token in query string for SSE stream connections (EventSource in browsers does not support custom headers)
   const path = req.path || req.originalUrl || '';
-  if (!token && req.query?.token && typeof req.query.token === 'string' && path.includes('/stream')) {
+  if (!token && req.query?.token && typeof req.query.token === 'string' && (path.endsWith('/stream') || path.split('?')[0].endsWith('/stream'))) {
     token = req.query.token;
   }
   return token;

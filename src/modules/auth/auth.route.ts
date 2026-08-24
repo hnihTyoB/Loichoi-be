@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { AuthController } from './auth.controller';
 import { authMiddleware } from '../../middlewares/auth.middleware';
 import { authRateLimitMiddleware } from '../../middlewares/rate-limit.middleware';
+import { requireFeatureFlag } from '../../middlewares/feature-flag.middleware';
+import { FEATURE_FLAGS } from '../../common/constants/system-config.constant';
 import { validate } from '../../middlewares/validate.middleware';
 import {
   loginSchema,
@@ -42,5 +44,8 @@ router.delete('/sessions', authMiddleware, validate(revokeOtherSessionsSchema), 
 
 router.post('/avatar/upload-url', authMiddleware, validate(getAvatarUploadUrlSchema), controller.getAvatarUploadUrl);
 router.post('/avatar/confirm', authMiddleware, validate(confirmAvatarUploadSchema), controller.confirmAvatarUpload);
+
+router.get('/discord', requireFeatureFlag(FEATURE_FLAGS.DISCORD_LOGIN_ENABLED), controller.discordAuth);
+router.get('/discord/callback', requireFeatureFlag(FEATURE_FLAGS.DISCORD_LOGIN_ENABLED), controller.discordCallback);
 
 export default router;

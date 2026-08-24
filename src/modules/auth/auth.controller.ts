@@ -1,8 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 import { AuthService } from './auth.service';
 import { LoginDto, RegisterDto, UpdateProfileDto, UpdatePasswordDto, ForgotPasswordDto, ResetPasswordDto, ResendVerificationDto, GetAvatarUploadUrlDto, ConfirmAvatarUploadDto } from './auth.dto';
 import { AppError } from '../../common/errors/app-error';
 import { ERROR_CODE } from '../../common/errors/error-code';
+import { envConfig } from '../../config/env.config';
 
 export class AuthController {
   private readonly service = new AuthService();
@@ -285,6 +287,117 @@ export class AuthController {
         success: true,
         data: { avatarUrl },
       });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  discordAuth = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const rawRedirect = typeof req.query.redirectUri === 'string' ? req.query.redirectUri : undefined;
+      let safeReturnUrl: string | undefined = undefined;
+
+      // Allowlist verification for custom frontend return URL
+      if (rawRedirect) {
+        try {
+          const parsed = new URL(rawRedirect);
+          const allowedOrigins = envConfig.cors.allowedOrigins;
+          const isAllowedOrigin =
+            allowedOrigins.includes('*') ||
+            allowedOrigins.some((orig) => orig === parsed.origin || orig === '*');
+
+          if (isAllowedOrigin || parsed.origin === envConfig.frontendUrl) {
+            safeReturnUrl = rawRedirect;
+          }
+        } catch {
+          // Ignore invalid URL formatting
+        }
+      }
+
+      // Generate random nonce to bind OAuth state with browser cookie
+      const nonce = crypto.randomBytes(16).toString('hex');
+      const result = this.service.getDiscordAuthUrl(safeReturnUrl, nonce);
+
+      res.cookie('discord_oauth_nonce', nonce, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 5 * 60 * 1000, // 5 minutes
+      });
+
+      if (req.query.json === 'true' || req.headers.accept?.includes('application/json')) {
+        res.json({
+          success: true,
+          data: result,
+        });
+        return;
+      }
+
+      res.redirect(result.url);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  discordCallback = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const code = typeof req.query.code === 'string' ? req.query.code : '';
+      const state = typeof req.query.state === 'string' ? req.query.state : '';
+      const expectedNonce = req.cookies?.discord_oauth_nonce;
+
+      if (!code || !state) {
+        throw new AppError('Thiếu thông tin xác thực OAuth từ Discord', 400, ERROR_CODE.OAUTH_STATE_INVALID);
+      }
+
+      const userAgent = req.headers['user-agent'];
+      const ipAddress = req.ip;
+      const result = await this.service.handleDiscordCallback(
+        code,
+        state,
+        { userAgent, ipAddress },
+        expectedNonce,
+      );
+
+      // Clean up OAuth nonce cookie
+      res.clearCookie('discord_oauth_nonce', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+      });
+
+      res.cookie('accessToken', result.accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 15 * 60 * 1000,
+      });
+
+      res.cookie('refreshToken', result.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
+      if (req.query.format === 'json' || req.headers.accept?.includes('application/json')) {
+        res.json({
+          success: true,
+          data: {
+            accessToken: result.accessToken,
+            refreshToken: result.refreshToken,
+            user: result.user,
+          },
+        });
+        return;
+      }
+
+      // Safe clean redirect: Tokens are delivered via secure HttpOnly cookies, NOT in URL query string!
+      const returnBase = result.returnUrl || `${envConfig.frontendUrl}/auth/callback`;
+      const url = new URL(returnBase);
+      url.searchParams.set('status', 'success');
+      url.searchParams.set('provider', 'discord');
+
+      res.redirect(url.toString());
     } catch (error) {
       next(error);
     }

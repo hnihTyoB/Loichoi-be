@@ -1,0 +1,536 @@
+import { Prisma } from '@prisma/client';
+import { prisma } from '../../database/prisma.client';
+import {
+  KeyboardQueryDto,
+  KeyboardManagementQueryDto,
+  CreateKeyboardDto,
+  UpdateKeyboardDto,
+} from './keyboard.dto';
+
+const publicThemeSelect = {
+  id: true,
+  name: true,
+  slug: true,
+  coverUrl: true,
+  platform: true,
+  accessLevel: true,
+  requiredDiscordRoleIds: true,
+  downloadCount: true,
+  publishedAt: true,
+  categories: {
+    where: {
+      category: { isActive: true },
+    },
+    select: {
+      category: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.KeyboardThemeSelect;
+
+export class KeyboardRepository {
+  async findPublicList(query: KeyboardQueryDto) {
+    const { page = 1, limit = 20, search, category, platform, sort = 'LATEST' } = query;
+
+    const where: Prisma.KeyboardThemeWhereInput = {
+      status: 'PUBLISHED',
+      ...(search ? { name: { contains: search, mode: 'insensitive' } } : {}),
+      ...(category
+        ? {
+            categories: {
+              some: {
+                category: {
+                  slug: category,
+                  isActive: true,
+                },
+              },
+            },
+          }
+        : {}),
+      ...(platform === 'IOS'
+        ? { platform: { in: ['IOS', 'BOTH'] } }
+        : platform === 'ANDROID'
+          ? { platform: { in: ['ANDROID', 'BOTH'] } }
+          : platform === 'BOTH'
+            ? { platform: 'BOTH' }
+            : {}),
+    };
+
+    let orderBy: Prisma.KeyboardThemeOrderByWithRelationInput[] = [
+      { publishedAt: 'desc' },
+      { id: 'desc' },
+    ];
+
+    if (sort === 'POPULAR') {
+      orderBy = [{ downloadCount: 'desc' }, { publishedAt: 'desc' }, { id: 'desc' }];
+    } else if (sort === 'NAME_ASC') {
+      orderBy = [{ name: 'asc' }, { id: 'asc' }];
+    } else if (sort === 'NAME_DESC') {
+      orderBy = [{ name: 'desc' }, { id: 'desc' }];
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await prisma.$transaction([
+      prisma.keyboardTheme.findMany({
+        where,
+        select: publicThemeSelect,
+        orderBy,
+        skip,
+        take: limit,
+      }),
+      prisma.keyboardTheme.count({ where }),
+    ]);
+
+    const data = items.map((item) => ({
+      id: item.id,
+      name: item.name,
+      slug: item.slug,
+      coverUrl: item.coverUrl,
+      platform: item.platform as any,
+      accessLevel: item.accessLevel as any,
+      requiredDiscordRoleIds: item.requiredDiscordRoleIds,
+      downloadCount: item.downloadCount,
+      publishedAt: item.publishedAt,
+      categories: item.categories.map((c) => c.category),
+    }));
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async findPublicBySlug(slug: string) {
+    const item = await prisma.keyboardTheme.findFirst({
+      where: {
+        slug,
+        status: 'PUBLISHED',
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        description: true,
+        coverUrl: true,
+        platform: true,
+        accessLevel: true,
+        requiredDiscordRoleIds: true,
+        downloadCount: true,
+        publishedAt: true,
+        categories: {
+          where: {
+            category: { isActive: true },
+          },
+          select: {
+            category: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
+            },
+          },
+        },
+        previewImages: {
+          select: {
+            id: true,
+            url: true,
+            altText: true,
+            position: true,
+          },
+          orderBy: {
+            position: 'asc',
+          },
+        },
+      },
+    });
+
+    if (!item) return null;
+
+    return {
+      id: item.id,
+      name: item.name,
+      slug: item.slug,
+      description: item.description,
+      coverUrl: item.coverUrl,
+      platform: item.platform as any,
+      accessLevel: item.accessLevel as any,
+      requiredDiscordRoleIds: item.requiredDiscordRoleIds,
+      downloadCount: item.downloadCount,
+      publishedAt: item.publishedAt,
+      categories: item.categories.map((c) => c.category),
+      previewImages: item.previewImages,
+    };
+  }
+
+  async findManagementList(query: KeyboardManagementQueryDto) {
+    const { page = 1, limit = 20, search, status, categoryId, platform, sort = 'createdAt_desc' } = query;
+
+    const where: Prisma.KeyboardThemeWhereInput = {
+      ...(search ? { name: { contains: search, mode: 'insensitive' } } : {}),
+      ...(status ? { status } : {}),
+      ...(categoryId ? { categories: { some: { categoryId } } } : {}),
+      ...(platform ? { platform } : {}),
+    };
+
+    let orderBy: Prisma.KeyboardThemeOrderByWithRelationInput = { createdAt: 'desc' };
+    if (sort === 'createdAt_asc') orderBy = { createdAt: 'asc' };
+    else if (sort === 'downloadCount_desc') orderBy = { downloadCount: 'desc' };
+    else if (sort === 'name_asc') orderBy = { name: 'asc' };
+
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await prisma.$transaction([
+      prisma.keyboardTheme.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy,
+        include: {
+          categories: {
+            include: {
+              category: true,
+            },
+          },
+        },
+      }),
+      prisma.keyboardTheme.count({ where }),
+    ]);
+
+    const data = items.map((item) => ({
+      id: item.id,
+      name: item.name,
+      slug: item.slug,
+      coverUrl: item.coverUrl,
+      driveUrl: item.driveUrl,
+      platform: item.platform as any,
+      status: item.status as any,
+      accessLevel: item.accessLevel as any,
+      requiredDiscordRoleIds: item.requiredDiscordRoleIds,
+      downloadCount: item.downloadCount,
+      publishedAt: item.publishedAt,
+      categoryNames: item.categories.map((c) => c.category.name),
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+    }));
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async findManagementById(id: string) {
+    const item = await prisma.keyboardTheme.findUnique({
+      where: { id },
+      include: {
+        categories: {
+          include: {
+            category: true,
+          },
+        },
+        previewImages: {
+          orderBy: { position: 'asc' },
+        },
+      },
+    });
+
+    if (!item) return null;
+
+    return {
+      id: item.id,
+      name: item.name,
+      slug: item.slug,
+      description: item.description,
+      coverUrl: item.coverUrl,
+      driveUrl: item.driveUrl,
+      platform: item.platform as any,
+      status: item.status as any,
+      accessLevel: item.accessLevel as any,
+      requiredDiscordRoleIds: item.requiredDiscordRoleIds,
+      downloadCount: item.downloadCount,
+      publishedAt: item.publishedAt,
+      categories: item.categories.map((c) => ({
+        id: c.category.id,
+        name: c.category.name,
+        slug: c.category.slug,
+        isActive: c.category.isActive,
+      })),
+      previewImages: item.previewImages,
+      createdBy: item.createdBy,
+      updatedBy: item.updatedBy,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+    };
+  }
+
+  findById(id: string) {
+    return prisma.keyboardTheme.findUnique({
+      where: { id },
+    });
+  }
+
+  findBySlug(slug: string) {
+    return prisma.keyboardTheme.findUnique({
+      where: { slug },
+    });
+  }
+
+  async create(
+    data: CreateKeyboardDto & { slug: string; publishedAt?: Date | null; createdBy?: string },
+  ) {
+    return prisma.$transaction(async (tx) => {
+      const theme = await tx.keyboardTheme.create({
+        data: {
+          name: data.name,
+          slug: data.slug,
+          description: data.description,
+          coverUrl: data.coverUrl,
+          driveUrl: data.driveUrl,
+          platform: data.platform,
+          status: data.status || 'DRAFT',
+          accessLevel: data.accessLevel || 'FREE',
+          requiredDiscordRoleIds: data.requiredDiscordRoleIds || [],
+          publishedAt: data.publishedAt,
+          createdBy: data.createdBy,
+          categories: {
+            create: data.categoryIds.map((categoryId) => ({
+              categoryId,
+            })),
+          },
+          previewImages: data.previewImages && data.previewImages.length > 0
+            ? {
+                create: data.previewImages.map((img) => ({
+                  url: img.url,
+                  altText: img.altText,
+                  position: img.position,
+                })),
+              }
+            : undefined,
+        },
+      });
+
+      return theme;
+    });
+  }
+
+  async update(
+    id: string,
+    data: UpdateKeyboardDto & { slug?: string; publishedAt?: Date | null; updatedBy?: string },
+  ) {
+    return prisma.$transaction(async (tx) => {
+      // 1. Cập nhật categories nếu có truyền
+      if (data.categoryIds !== undefined) {
+        await tx.keyboardThemeCategory.deleteMany({
+          where: { keyboardThemeId: id },
+        });
+        if (data.categoryIds.length > 0) {
+          await tx.keyboardThemeCategory.createMany({
+            data: data.categoryIds.map((categoryId) => ({
+              keyboardThemeId: id,
+              categoryId,
+            })),
+          });
+        }
+      }
+
+      // 2. Cập nhật previewImages nếu có truyền
+      if (data.previewImages !== undefined) {
+        await tx.keyboardImage.deleteMany({
+          where: { keyboardThemeId: id },
+        });
+        if (data.previewImages.length > 0) {
+          await tx.keyboardImage.createMany({
+            data: data.previewImages.map((img) => ({
+              keyboardThemeId: id,
+              url: img.url,
+              altText: img.altText,
+              position: img.position,
+            })),
+          });
+        }
+      }
+
+      // 3. Cập nhật thông tin theme
+      const updatedTheme = await tx.keyboardTheme.update({
+        where: { id },
+        data: {
+          name: data.name,
+          slug: data.slug,
+          description: data.description,
+          coverUrl: data.coverUrl,
+          driveUrl: data.driveUrl,
+          platform: data.platform,
+          status: data.status,
+          accessLevel: data.accessLevel,
+          requiredDiscordRoleIds: data.requiredDiscordRoleIds,
+          publishedAt: data.publishedAt,
+          updatedBy: data.updatedBy,
+        },
+      });
+
+      return updatedTheme;
+    });
+  }
+
+  delete(id: string) {
+    return prisma.keyboardTheme.delete({
+      where: { id },
+    });
+  }
+
+  archive(id: string) {
+    return prisma.keyboardTheme.update({
+      where: { id },
+      data: { status: 'HIDDEN' },
+    });
+  }
+
+  countDownloads(keyboardThemeId: string) {
+    return prisma.download.count({
+      where: { keyboardThemeId },
+    });
+  }
+
+  async countThemeCategories(themeId: string): Promise<number> {
+    return prisma.keyboardThemeCategory.count({
+      where: { keyboardThemeId: themeId },
+    });
+  }
+
+  async recordDownloadAndIncrement(
+    userId: string,
+    keyboardThemeId: string,
+    metadata?: { ipAddress?: string; userAgent?: string },
+  ) {
+    return prisma.$transaction([
+      prisma.download.create({
+        data: {
+          userId,
+          keyboardThemeId,
+          ipAddress: metadata?.ipAddress,
+          userAgent: metadata?.userAgent,
+        },
+      }),
+      prisma.keyboardTheme.update({
+        where: { id: keyboardThemeId },
+        data: {
+          downloadCount: { increment: 1 },
+        },
+      }),
+    ]);
+  }
+
+  /**
+   * Đếm số lượng theme duy nhất mà người dùng đã từng tải về (có lọc theo mốc thời gian nếu có)
+   */
+  async countUniqueThemesDownloadedByUser(userId: string, sinceDate?: Date): Promise<number> {
+    const records = await prisma.download.groupBy({
+      by: ['keyboardThemeId'],
+      where: {
+        userId,
+        ...(sinceDate ? { createdAt: { gte: sinceDate } } : {}),
+      },
+    });
+    return records.length;
+  }
+
+  /**
+   * Truy vấn thông tin tài khoản người dùng để xác thực trạng thái hoạt động
+   */
+  async findUserById(userId: string) {
+    return prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
+      select: { id: true, isActive: true, downloadQuotaResetAt: true },
+    });
+  }
+
+  /**
+   * Lấy mốc thời gian Reset Quota gần nhất của người dùng
+   */
+  async getUserQuotaResetAt(userId: string): Promise<Date | null> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { downloadQuotaResetAt: true },
+    });
+    return user?.downloadQuotaResetAt || null;
+  }
+
+  /**
+   * Reset hạn mức tải về của người dùng (cập nhật mốc downloadQuotaResetAt)
+   */
+  async resetUserDownloadQuota(userId: string): Promise<Date> {
+    const now = new Date();
+    await prisma.user.update({
+      where: { id: userId },
+      data: { downloadQuotaResetAt: now },
+    });
+    return now;
+  }
+
+  /**
+   * Kiểm tra người dùng đã từng tải theme này trước đây chưa (phục vụ Re-download miễn phí)
+   */
+  async hasUserDownloadedTheme(userId: string, keyboardThemeId: string): Promise<boolean> {
+    const record = await prisma.download.findFirst({
+      where: {
+        userId,
+        keyboardThemeId,
+      },
+      select: { id: true },
+    });
+    return !!record;
+  }
+
+  /**
+   * Lấy tài khoản Discord liên kết của User
+   */
+  async getUserDiscordSocial(userId: string) {
+    return prisma.userSocial.findFirst({
+      where: {
+        userId,
+        provider: 'DISCORD',
+      },
+    });
+  }
+
+  async createAuditLog(data: {
+    actorId?: string;
+    action: string;
+    targetType: string;
+    targetId: string;
+    details?: Record<string, any>;
+    ipAddress?: string;
+    userAgent?: string;
+  }) {
+    return prisma.auditLog.create({
+      data: {
+        actorId: data.actorId,
+        action: data.action,
+        targetType: data.targetType,
+        targetId: data.targetId,
+        details: data.details,
+        ipAddress: data.ipAddress,
+        userAgent: data.userAgent,
+      },
+    });
+  }
+}
+
+export const keyboardRepository = new KeyboardRepository();

@@ -1,0 +1,159 @@
+import { z } from 'zod';
+import { isGoogleDriveUrl } from '../../common/constants/keyboard.constant';
+import { isPublicHttpUrl } from '../../common/helpers/url.helper';
+
+export const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+export const previewImageItemSchema = z.object({
+  url: z
+    .string()
+    .url('URL ảnh xem trước không hợp lệ')
+    .refine((url) => isPublicHttpUrl(url), {
+      message: 'URL ảnh xem trước không an toàn hoặc không hợp lệ',
+    }),
+  altText: z.string().max(200, 'Alt text tối đa 200 ký tự').optional(),
+  position: z.number().int().min(0, 'Position phải là số nguyên không âm'),
+});
+
+export const createKeyboardSchema = z
+  .object({
+    name: z.string().min(3, 'Tên theme phải có tối thiểu 3 ký tự').max(150, 'Tên theme tối đa 150 ký tự').trim(),
+    slug: z
+      .string()
+      .min(2, 'Slug phải có tối thiểu 2 ký tự')
+      .max(100, 'Slug tối đa 100 ký tự')
+      .regex(slugRegex, 'Slug chỉ được chứa chữ cái thường, số và dấu gạch ngang')
+      .optional(),
+    description: z.string().max(2000, 'Mô tả tối đa 2000 ký tự').optional(),
+    coverUrl: z
+      .string()
+      .url('URL ảnh cover không hợp lệ')
+      .refine((url) => isPublicHttpUrl(url), {
+        message: 'URL ảnh cover không an toàn hoặc không hợp lệ',
+      }),
+    driveUrl: z
+      .string()
+      .url('URL Google Drive không hợp lệ')
+      .refine((url) => isGoogleDriveUrl(url), {
+        message: 'URL tải file phải là đường dẫn Google Drive hợp lệ (drive.google.com / docs.google.com)',
+      }),
+    platform: z.enum(['IOS', 'ANDROID', 'BOTH'], {
+      errorMap: () => ({ message: 'Nền tảng phải là IOS, ANDROID hoặc BOTH' }),
+    }),
+    status: z.enum(['DRAFT', 'PUBLISHED', 'HIDDEN']).optional().default('DRAFT'),
+    accessLevel: z.enum(['FREE', 'DISCORD_MEMBER', 'DISCORD_ROLE']).optional().default('FREE'),
+    requiredDiscordRoleIds: z.array(z.string().trim().min(1, 'Role ID không được rỗng')).optional().default([]),
+    categoryIds: z.array(z.string().uuid('Category ID phải là UUID hợp lệ')),
+    previewImages: z.array(previewImageItemSchema).max(10, 'Tối đa 10 ảnh xem trước').optional().default([]),
+  })
+  .refine(
+    (data) => {
+      if (data.status === 'PUBLISHED' && (!data.categoryIds || data.categoryIds.length === 0)) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: 'Theme ở trạng thái PUBLISHED bắt buộc phải có ít nhất 1 danh mục',
+      path: ['categoryIds'],
+    },
+  )
+  .refine(
+    (data) => {
+      if (data.accessLevel === 'DISCORD_ROLE' && (!data.requiredDiscordRoleIds || data.requiredDiscordRoleIds.length === 0)) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: 'Theme có cấp độ DISCORD_ROLE bắt buộc phải cung cấp ít nhất 1 ID Role của Discord Server',
+      path: ['requiredDiscordRoleIds'],
+    },
+  );
+
+export const updateKeyboardSchema = z
+  .object({
+    name: z.string().min(3, 'Tên theme phải có tối thiểu 3 ký tự').max(150, 'Tên theme tối đa 150 ký tự').trim().optional(),
+    slug: z
+      .string()
+      .min(2, 'Slug phải có tối thiểu 2 ký tự')
+      .max(100, 'Slug tối đa 100 ký tự')
+      .regex(slugRegex, 'Slug chỉ được chứa chữ cái thường, số và dấu gạch ngang')
+      .optional(),
+    description: z.string().max(2000, 'Mô tả tối đa 2000 ký tự').optional().nullable(),
+    coverUrl: z
+      .string()
+      .url('URL ảnh cover không hợp lệ')
+      .refine((url) => isPublicHttpUrl(url), {
+        message: 'URL ảnh cover không an toàn hoặc không hợp lệ',
+      })
+      .optional(),
+    driveUrl: z
+      .string()
+      .url('URL Google Drive không hợp lệ')
+      .refine((url) => isGoogleDriveUrl(url), {
+        message: 'URL tải file phải là đường dẫn Google Drive hợp lệ (drive.google.com / docs.google.com)',
+      })
+      .optional(),
+    platform: z.enum(['IOS', 'ANDROID', 'BOTH']).optional(),
+    status: z.enum(['DRAFT', 'PUBLISHED', 'HIDDEN']).optional(),
+    accessLevel: z.enum(['FREE', 'DISCORD_MEMBER', 'DISCORD_ROLE']).optional(),
+    requiredDiscordRoleIds: z.array(z.string().trim().min(1, 'Role ID không được rỗng')).optional(),
+    categoryIds: z.array(z.string().uuid('Category ID phải là UUID hợp lệ')).optional(),
+    previewImages: z.array(previewImageItemSchema).max(10, 'Tối đa 10 ảnh xem trước').optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.status === 'PUBLISHED' && data.categoryIds !== undefined && data.categoryIds.length === 0) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: 'Theme ở trạng thái PUBLISHED không được để trống danh mục',
+      path: ['categoryIds'],
+    },
+  )
+  .refine(
+    (data) => {
+      if (data.accessLevel === 'DISCORD_ROLE' && (!data.requiredDiscordRoleIds || data.requiredDiscordRoleIds.length === 0)) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: 'Theme có cấp độ DISCORD_ROLE bắt buộc phải cung cấp ít nhất 1 ID Role của Discord Server',
+      path: ['requiredDiscordRoleIds'],
+    },
+  );
+
+export const keyboardIdParamSchema = z.object({
+  id: z.string().uuid('ID theme phải là UUID hợp lệ'),
+});
+
+export const userIdParamSchema = z.object({
+  userId: z.string().uuid('User ID phải là UUID hợp lệ'),
+});
+
+export const keyboardSlugParamSchema = z.object({
+  slug: z.string().min(2).max(100).regex(slugRegex, 'Slug không đúng định dạng'),
+});
+
+export const keyboardPublicQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  search: z.string().trim().optional(),
+  category: z.string().trim().optional(),
+  platform: z.enum(['IOS', 'ANDROID', 'BOTH']).optional(),
+  sort: z.enum(['LATEST', 'POPULAR', 'NAME_ASC', 'NAME_DESC']).optional().default('LATEST'),
+});
+
+export const keyboardManagementQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  search: z.string().trim().optional(),
+  status: z.enum(['DRAFT', 'PUBLISHED', 'HIDDEN']).optional(),
+  categoryId: z.string().uuid().optional(),
+  platform: z.enum(['IOS', 'ANDROID', 'BOTH']).optional(),
+  sort: z.string().optional().default('createdAt_desc'),
+});

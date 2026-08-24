@@ -78,4 +78,14 @@ export const envConfig = {
     maxAttempts: parseInt(process.env.WEBHOOK_MAX_ATTEMPTS || '5', 10),
     timeoutMs: parseInt(process.env.WEBHOOK_TIMEOUT_MS || '10000', 10),
   },
+  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+  discord: {
+    clientId: process.env.DISCORD_CLIENT_ID || '',
+    clientSecret: process.env.DISCORD_CLIENT_SECRET || '',
+    redirectUri: process.env.DISCORD_REDIRECT_URI || 'http://localhost:8888/api/v1/auth/discord/callback',
+    botToken: process.env.DISCORD_BOT_TOKEN || '',
+    guildId: process.env.DISCORD_GUILD_ID || '',
+    inviteUrl: process.env.DISCORD_INVITE_URL || 'https://discord.gg',
+    webhookUrl: process.env.DISCORD_WEBHOOK_URL || '',
+  },
 };

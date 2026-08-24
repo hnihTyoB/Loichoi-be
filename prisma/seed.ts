@@ -42,6 +42,18 @@ const SYSTEM_PERMISSIONS = [
   // Webhooks
   { name: 'WEBHOOK_READ', resource: 'WEBHOOK', action: 'READ', description: 'Xem danh sách Webhook Endpoints và lịch sử giao nhận' },
   { name: 'WEBHOOK_MANAGE', resource: 'WEBHOOK', action: 'MANAGE', description: 'Đăng ký, cấu hình và kích hoạt retry Webhook deliveries' },
+
+  // Keyboard Themes Management
+  { name: 'KEYBOARD_READ', resource: 'KEYBOARD', action: 'READ', description: 'Xem danh sách và chi tiết quản trị Keyboard Themes' },
+  { name: 'KEYBOARD_CREATE', resource: 'KEYBOARD', action: 'CREATE', description: 'Tạo mới Keyboard Theme' },
+  { name: 'KEYBOARD_UPDATE', resource: 'KEYBOARD', action: 'UPDATE', description: 'Chỉnh sửa Keyboard Theme, đổi trạng thái và cập nhật ảnh' },
+  { name: 'KEYBOARD_DELETE', resource: 'KEYBOARD', action: 'DELETE', description: 'Xóa hoặc lưu trữ (archive) Keyboard Theme' },
+
+  // Categories Management
+  { name: 'CATEGORY_READ', resource: 'CATEGORY', action: 'READ', description: 'Xem danh sách danh mục quản trị' },
+  { name: 'CATEGORY_CREATE', resource: 'CATEGORY', action: 'CREATE', description: 'Tạo mới danh mục' },
+  { name: 'CATEGORY_UPDATE', resource: 'CATEGORY', action: 'UPDATE', description: 'Chỉnh sửa danh mục' },
+  { name: 'CATEGORY_DELETE', resource: 'CATEGORY', action: 'DELETE', description: 'Xóa danh mục' },
 ];
 
 const USER_BASE_PERMISSIONS: string[] = [
@@ -60,6 +72,8 @@ const MANAGER_PERMISSIONS: string[] = [
   'AUDIT_LOG_READ',
   'API_KEY_READ',
   'WEBHOOK_READ',
+  'KEYBOARD_READ',
+  'CATEGORY_READ',
 ];
 
 async function main() {
@@ -326,6 +340,45 @@ async function main() {
     });
   }
   console.log('NotificationTemplates default seeded (6 templates)');
+
+  // 7. Seed Default Categories
+  const DEFAULT_CATEGORIES = [
+    { name: 'Anime', slug: 'anime' },
+    { name: 'Pastel', slug: 'pastel' },
+    { name: 'Cyberpunk', slug: 'cyberpunk' },
+    { name: 'Minimalist', slug: 'minimalist' },
+    { name: 'Gaming', slug: 'gaming' },
+  ];
+
+  for (const cat of DEFAULT_CATEGORIES) {
+    await prisma.category.upsert({
+      where: { slug: cat.slug },
+      update: { name: cat.name, isActive: true },
+      create: { name: cat.name, slug: cat.slug, isActive: true },
+    });
+  }
+  console.log('Default Categories seeded (5 categories)');
+
+  // 8. Seed Default System Configurations & Feature Flags
+  const { DEFAULT_SYSTEM_CONFIGS } = await import('../src/common/constants/system-config.constant');
+  for (const cfg of DEFAULT_SYSTEM_CONFIGS) {
+    await prisma.systemConfig.upsert({
+      where: { key: cfg.key },
+      update: {
+        description: cfg.description,
+        category: cfg.category,
+        isPublic: cfg.isPublic,
+      },
+      create: {
+        key: cfg.key,
+        value: cfg.value as any,
+        description: cfg.description,
+        category: cfg.category,
+        isPublic: cfg.isPublic,
+      },
+    });
+  }
+  console.log(`Default System Configurations & Feature Flags seeded (${DEFAULT_SYSTEM_CONFIGS.length} configs)`);
 
   console.log('Seed completed successfully');
 }

@@ -14,12 +14,13 @@ model User {
   fullName    String?   @map("full_name")
   avatarUrl   String?   @map("avatar_url")
   phoneNumber String?   @unique @map("phone_number")
-  isActive    Boolean   @default(false) @map("is_active")
-  deletedAt   DateTime? @map("deleted_at")
-  deletedBy   String?   @map("deleted_by") @db.Uuid
-  roleId      String    @map("role_id") @db.Uuid
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  isActive              Boolean   @default(false) @map("is_active")
+  downloadQuotaResetAt  DateTime? @map("download_quota_reset_at")
+  deletedAt             DateTime? @map("deleted_at")
+  deletedBy             String?   @map("deleted_by") @db.Uuid
+  roleId                String    @map("role_id") @db.Uuid
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
   // Relations
   role                Role                 @relation(fields: [roleId], references: [id], onDelete: Restrict)
@@ -33,6 +34,7 @@ model User {
   apiKeys             ApiKey[]
   webhookEndpoints    WebhookEndpoint[]
   webhookDeliveries   WebhookDelivery[]
+  downloads           Download[]
 
   @@index([roleId])
   @@index([deletedAt])
@@ -231,7 +233,6 @@ model NotificationTemplate {
   @@map("notification_templates")
 }
 
-
 model MaintenanceConfig {
   id                String    @id @default(uuid()) @db.Uuid
   key               String    @unique @default("DEFAULT")
@@ -332,4 +333,92 @@ model SystemConfig {
   @@map("system_configs")
 }
 
+model KeyboardTheme {
+  id            String    @id @default(uuid()) @db.Uuid
+  name          String
+  slug          String    @unique
+  description   String?
+  coverUrl      String    @map("cover_url")
+  driveUrl      String    @map("drive_url")
+  platform                String    @default("BOTH")
+  status                  String    @default("DRAFT")
+  accessLevel             String    @default("FREE") @map("access_level") // "FREE", "DISCORD_MEMBER", "DISCORD_ROLE"
+  requiredDiscordRoleIds  String[]  @default([]) @map("required_discord_role_ids")
+  downloadCount           Int       @default(0) @map("download_count")
+  publishedAt             DateTime? @map("published_at")
+  createdBy             String?   @map("created_by") @db.Uuid
+  updatedBy             String?   @map("updated_by") @db.Uuid
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
+  previewImages KeyboardImage[]
+  categories    KeyboardThemeCategory[]
+  downloads     Download[]
+
+  @@index([status, publishedAt(sort: Desc)])
+  @@index([platform])
+  @@index([accessLevel])
+  @@index([downloadCount(sort: Desc)])
+  @@map("keyboard_themes")
+}
+
+model KeyboardImage {
+  id              String   @id @default(uuid()) @db.Uuid
+  keyboardThemeId String   @map("keyboard_theme_id") @db.Uuid
+  url             String
+  altText         String?  @map("alt_text")
+  position        Int      @default(0)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  theme KeyboardTheme @relation(fields: [keyboardThemeId], references: [id], onDelete: Cascade)
+
+  @@unique([keyboardThemeId, position])
+  @@index([keyboardThemeId])
+  @@map("keyboard_images")
+}
+
+model Category {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String   @unique
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  themes KeyboardThemeCategory[]
+
+  @@index([isActive])
+  @@map("categories")
+}
+
+model KeyboardThemeCategory {
+  id              String   @id @default(uuid()) @db.Uuid
+  keyboardThemeId String   @map("keyboard_theme_id") @db.Uuid
+  categoryId      String   @map("category_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  theme    KeyboardTheme @relation(fields: [keyboardThemeId], references: [id], onDelete: Cascade)
+  category Category      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@unique([keyboardThemeId, categoryId])
+  @@index([keyboardThemeId])
+  @@index([categoryId])
+  @@map("keyboard_theme_categories")
+}
+
+model Download {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  keyboardThemeId String   @map("keyboard_theme_id") @db.Uuid
+  ipAddress       String?  @map("ip_address")
+  userAgent       String?  @map("user_agent")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme KeyboardTheme @relation(fields: [keyboardThemeId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([keyboardThemeId, createdAt(sort: Desc)])
+  @@index([userId, keyboardThemeId])
+  @@map("downloads")
+}
