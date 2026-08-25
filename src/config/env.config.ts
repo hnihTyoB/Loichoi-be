@@ -1,6 +1,6 @@
 export const envConfig = {
   nodeEnv: process.env.NODE_ENV || 'development',
-  port: parseInt(process.env.PORT || '8888', 10),
+  port: parseInt(process.env.PORT || '9999', 10),
   database: {
     url: process.env.DATABASE_URL || '',
   },
@@ -82,7 +82,7 @@ export const envConfig = {
   discord: {
     clientId: process.env.DISCORD_CLIENT_ID || '',
     clientSecret: process.env.DISCORD_CLIENT_SECRET || '',
-    redirectUri: process.env.DISCORD_REDIRECT_URI || 'http://localhost:8888/api/v1/auth/discord/callback',
+    redirectUri: process.env.DISCORD_REDIRECT_URI || 'http://localhost:9999/api/v1/auth/discord/callback',
     botToken: process.env.DISCORD_BOT_TOKEN || '',
     guildId: process.env.DISCORD_GUILD_ID || '',
     inviteUrl: process.env.DISCORD_INVITE_URL || 'https://discord.gg',
