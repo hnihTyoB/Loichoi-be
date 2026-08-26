@@ -6,6 +6,7 @@ import {
   CreateKeyboardDto,
   UpdateKeyboardDto,
   GetThemeImageUploadUrlDto,
+  GetThemeBatchImageUploadUrlsDto,
 } from './keyboard.dto';
 
 export class KeyboardController {
@@ -16,6 +17,20 @@ export class KeyboardController {
       const body = req.body as GetThemeImageUploadUrlDto;
       const userId = req.user!.id;
       const result = await this.service.getImageUploadUrl(userId, body);
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getBatchImageUploadUrls = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const body = req.body as GetThemeBatchImageUploadUrlsDto;
+      const userId = req.user!.id;
+      const result = await this.service.getBatchImageUploadUrls(userId, body);
       res.json({
         success: true,
         data: result,

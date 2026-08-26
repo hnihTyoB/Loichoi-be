@@ -14,7 +14,9 @@ import { NOTIFICATION_TYPE, NOTIFICATION_PRIORITY } from '../../common/constants
 import { notificationDispatcher } from '../../common/services/notification-dispatcher.service';
 import { generateDeviceHash, parseUserAgent } from '../../common/helpers/user-agent.helper';
 import { permissionCacheService } from '../../common/services/permission-cache.service';
+import { extractR2Key } from '../../common/helpers/r2.helper';
 import { discordOAuthService } from './discord-oauth.service';
+
 
 export class AuthService {
   private readonly repository = new AuthRepository();
@@ -479,13 +481,8 @@ export class AuthService {
     const newAvatarUrl = this.r2Service.getPublicUrl(data.key);
 
     // Lấy key cũ từ avatar_url hiện tại trước khi ghi đè
-    let oldKey: string | null = null;
-    if (user.avatarUrl) {
-      const base = r2Config.publicBaseUrl.replace(/\/$/, '');
-      if (user.avatarUrl.startsWith(base)) {
-        oldKey = user.avatarUrl.slice(base.length + 1); // loại bỏ "base/"
-      }
-    }
+    const oldKey = extractR2Key(user.avatarUrl, 'avatars');
+
 
     // Cập nhật avatar_url vào DB
     await this.repository.updateProfile(userId, { avatarUrl: newAvatarUrl });

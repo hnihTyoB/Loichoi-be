@@ -14,6 +14,7 @@ import {
   keyboardPublicQuerySchema,
   keyboardManagementQuerySchema,
   getThemeImageUploadUrlSchema,
+  getThemeBatchImageUploadUrlsSchema,
 } from './keyboard.validation';
 
 const router = Router();
@@ -30,6 +31,13 @@ router.post(
   authMiddleware,
   validate(getThemeImageUploadUrlSchema),
   keyboardController.getImageUploadUrl,
+);
+
+router.post(
+  '/batch-upload-urls',
+  authMiddleware,
+  validate(getThemeBatchImageUploadUrlsSchema),
+  keyboardController.getBatchImageUploadUrls,
 );
 
 router.get(

@@ -101,8 +101,9 @@ describe('Auto Swagger OpenAPI Generation via zod-to-openapi', () => {
 
 
   it('should export valid swaggerOptions configuration for Swagger UI', () => {
-    assert.equal(swaggerOptions.customSiteTitle, 'API Documentation');
+    assert.equal(swaggerOptions.customSiteTitle, 'KeyboardHub API Documentation');
     assert.ok(typeof swaggerOptions.customCss === 'string');
     assert.ok(swaggerOptions.customCss.includes('.swagger-ui'));
   });
 });
+

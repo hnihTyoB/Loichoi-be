@@ -6,6 +6,8 @@ import {
   keyboardSlugParamSchema,
   keyboardPublicQuerySchema,
   keyboardManagementQuerySchema,
+  getThemeImageUploadUrlSchema,
+  getThemeBatchImageUploadUrlsSchema,
 } from './keyboard.validation';
 import { z } from 'zod';
 
@@ -15,6 +17,7 @@ const CreatorSummarySchema = z.object({
   username: z.string().nullable().openapi({ example: 'kurothemes' }),
   avatarUrl: z.string().url().nullable().openapi({ example: 'https://example.com/avatar.jpg' }),
 });
+
 
 export function registerKeyboardOpenApi(): void {
   openapiRegistry.register('CreateKeyboardRequest', createKeyboardSchema);
@@ -422,4 +425,84 @@ export function registerKeyboardOpenApi(): void {
       },
     },
   });
+
+  // 12. POST /keyboards/upload-url (Get presigned upload URL for single image)
+  openapiRegistry.registerPath({
+    method: 'post',
+    path: '/keyboards/upload-url',
+    tags: ['Keyboard Themes'],
+    summary: 'Lấy presigned URL tải ảnh theme trực tiếp lên R2',
+    description: 'Tạo URL ký trước để client upload file ảnh trực tiếp lên Cloudflare R2.',
+    security: [{ BearerAuth: [] }],
+    request: {
+      body: {
+        content: {
+          'application/json': {
+            schema: getThemeImageUploadUrlSchema,
+          },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: 'Lấy presigned URL thành công',
+        content: {
+          'application/json': {
+            schema: z.object({
+              success: z.boolean().openapi({ example: true }),
+              data: z.object({
+                uploadUrl: z.string().url(),
+                publicUrl: z.string().url(),
+                key: z.string(),
+                expiresIn: z.number().int(),
+              }),
+            }),
+          },
+        },
+      },
+    },
+  });
+
+  // 13. POST /keyboards/batch-upload-urls (Get presigned upload URLs for multiple images)
+  openapiRegistry.registerPath({
+    method: 'post',
+    path: '/keyboards/batch-upload-urls',
+    tags: ['Keyboard Themes'],
+    summary: 'Lấy danh sách presigned URLs để tải nhiều ảnh theme cùng lúc lên R2',
+    description: 'Tạo danh sách URLs ký trước song song cho nhiều file ảnh theme.',
+    security: [{ BearerAuth: [] }],
+    request: {
+      body: {
+        content: {
+          'application/json': {
+            schema: getThemeBatchImageUploadUrlsSchema,
+          },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: 'Lấy batch presigned URLs thành công',
+        content: {
+          'application/json': {
+            schema: z.object({
+              success: z.boolean().openapi({ example: true }),
+              data: z.object({
+                items: z.array(
+                  z.object({
+                    uploadUrl: z.string().url(),
+                    publicUrl: z.string().url(),
+                    key: z.string(),
+                    expiresIn: z.number().int(),
+                  }),
+                ),
+              }),
+            }),
+          },
+        },
+      },
+    },
+  });
 }
+
+

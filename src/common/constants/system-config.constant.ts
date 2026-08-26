@@ -55,15 +55,15 @@ export const DEFAULT_SYSTEM_CONFIGS = [
   },
   {
     key: 'discord.invite_url',
-    value: 'https://discord.gg/keyboardhub',
-    description: 'Đường dẫn liên kết mời gia nhập Discord Server cộng đồng KeyboardHub',
+    value: 'https://discord.gg/DVu3TTv3',
+    description: 'Đường dẫn liên kết mời gia nhập Discord Server cộng đồng',
     category: SYSTEM_CONFIG_CATEGORY.INTEGRATION,
     isPublic: true,
   },
   {
     key: 'discord.vip_role_ids',
     value: ['123456789012345678'],
-    description: 'Danh sách Discord Role IDs được hưởng đặc quyền VIP / Server Booster (tải không giới hạn)',
+    description: 'Danh sách Discord Role IDs được hưởng đặc quyền (tải không giới hạn)',
     category: SYSTEM_CONFIG_CATEGORY.INTEGRATION,
     isPublic: false,
   },
@@ -176,7 +176,7 @@ export const DEFAULT_SYSTEM_CONFIGS = [
   {
     key: FEATURE_FLAGS.COLLECTIONS_ENABLED,
     value: true,
-    description: 'Bật tính năng Khám phá và Tạo bộ sưu tập (Collections)',
+    description: 'Bật tính năng Khám phá và Tạo bộ sưu tập',
     category: SYSTEM_CONFIG_CATEGORY.FEATURE_FLAG,
     isPublic: true,
   },

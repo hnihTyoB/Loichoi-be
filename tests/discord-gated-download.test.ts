@@ -101,8 +101,8 @@ describe('Discord Gated Membership & Role-Based Access Control', () => {
     (service as any).discordBotService = mockBotService;
   });
 
-  it('should validate schema and require requiredDiscordRoleIds when accessLevel is DISCORD_ROLE', () => {
-    const invalidPayload = {
+  it('should validate schema and allow optional requiredDiscordRoleIds when accessLevel is DISCORD_ROLE', () => {
+    const payloadWithoutRoles = {
       name: 'VIP Theme',
       coverUrl: 'https://cdn.example.com/cover.webp',
       driveUrl: 'https://drive.google.com/file/d/vip/view',
@@ -112,18 +112,19 @@ describe('Discord Gated Membership & Role-Based Access Control', () => {
       categoryIds: ['9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d'],
     };
 
-    assert.throws(() => {
-      createKeyboardSchema.parse(invalidPayload);
-    }, /Theme có cấp độ DISCORD_ROLE bắt buộc phải cung cấp ít nhất 1 ID Role của Discord Server/);
+    const parsedWithoutRoles = createKeyboardSchema.parse(payloadWithoutRoles);
+    assert.equal(parsedWithoutRoles.accessLevel, 'DISCORD_ROLE');
+    assert.deepEqual(parsedWithoutRoles.requiredDiscordRoleIds, []);
 
     const validPayload = {
-      ...invalidPayload,
+      ...payloadWithoutRoles,
       requiredDiscordRoleIds: ['ROLE_VIP_101', 'ROLE_BOOSTER_999'],
     };
     const parsed = createKeyboardSchema.parse(validPayload);
     assert.equal(parsed.accessLevel, 'DISCORD_ROLE');
     assert.deepEqual(parsed.requiredDiscordRoleIds, ['ROLE_VIP_101', 'ROLE_BOOSTER_999']);
   });
+
 
   it('should allow downloading FREE theme for any authenticated user without Discord check', async () => {
     const userWithoutDiscord = { id: 'user-email-only', isActive: true };
@@ -217,4 +218,43 @@ describe('Discord Gated Membership & Role-Based Access Control', () => {
       },
     );
   });
+
+  it('should fallback to discord.vip_role_ids from system config when DISCORD_ROLE theme has empty requiredDiscordRoleIds', async () => {
+    themesDb.set('empty-role-theme', {
+      id: 't-empty-role',
+      name: 'Default VIP Theme',
+      slug: 'empty-role-theme',
+      driveUrl: 'https://drive.google.com/file/d/empty-role/view',
+      status: 'PUBLISHED',
+      accessLevel: 'DISCORD_ROLE',
+      requiredDiscordRoleIds: [],
+      downloadCount: 0,
+    });
+
+    (service as any).systemConfigService = {
+      isFeatureEnabled: async () => true,
+      get: async (key: string, fallback: any) => {
+        if (key === 'discord.vip_role_ids') return ['ROLE_VIP_101'];
+        return fallback;
+      },
+    };
+
+    // User with ROLE_VIP_101 should be allowed
+    const vipUser = { id: 'user-discord-vip', isActive: true };
+    const url = await service.processDownload('empty-role-theme', vipUser);
+    assert.equal(url, 'https://drive.google.com/file/d/empty-role/view');
+
+    // Normal member without VIP role should be rejected
+    const memberUser = { id: 'user-discord-linked', isActive: true };
+    await assert.rejects(
+      async () => service.processDownload('empty-role-theme', memberUser),
+      (err: AppError) => {
+        assert.equal(err.statusCode, 403);
+        assert.equal(err.code, ERROR_CODE.DISCORD_ROLE_REQUIRED);
+        assert.deepEqual((err.data as any)?.requiredRoleIds, ['ROLE_VIP_101']);
+        return true;
+      },
+    );
+  });
 });
+

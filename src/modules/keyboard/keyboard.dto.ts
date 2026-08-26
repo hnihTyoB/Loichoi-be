@@ -181,3 +181,15 @@ export interface GetThemeImageUploadUrlResponseDto {
   key: string;
   expiresIn: number;
 }
+
+export interface GetThemeBatchImageUploadUrlsDto {
+  files: Array<{
+    contentType: string;
+    imageType?: 'COVER' | 'PREVIEW';
+  }>;
+}
+
+export interface GetThemeBatchImageUploadUrlsResponseDto {
+  items: GetThemeImageUploadUrlResponseDto[];
+}
+

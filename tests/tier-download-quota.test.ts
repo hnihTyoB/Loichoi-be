@@ -43,7 +43,9 @@ describe('Tier Download Quotas & Dynamic SystemConfig Limits', () => {
       ['feature.tier_download_quota.enabled', true],
       ['keyboard.tier_free_download_limit', 10],
       ['keyboard.tier_member_download_limit', 50],
+      ['discord.vip_role_ids', ['ROLE_SERVER_BOOSTER']],
     ]);
+
 
     mockRepo = {
       findBySlug: async (slug: string) => themesDb.get(slug) || null,

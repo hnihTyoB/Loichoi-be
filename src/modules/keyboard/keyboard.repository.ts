@@ -374,9 +374,15 @@ export class KeyboardRepository {
   findById(id: string) {
     return prisma.keyboardTheme.findUnique({
       where: { id },
-      include: { author: { select: authorSelect } },
+      include: {
+        author: { select: authorSelect },
+        previewImages: {
+          orderBy: { position: 'asc' },
+        },
+      },
     });
   }
+
 
   findBySlug(slug: string) {
     return prisma.keyboardTheme.findUnique({

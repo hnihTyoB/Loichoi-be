@@ -2,6 +2,7 @@ import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { requirePermission, requireAnyPermission } from '../src/middlewares/permission.middleware';
 import { permissionCacheService } from '../src/common/services/permission-cache.service';
+import { AuthRepository } from '../src/modules/auth/auth.repository';
 import { PERMISSIONS } from '../src/common/constants/permission.constant';
 import { ROLES } from '../src/common/constants/role.constant';
 import { AppError } from '../src/common/errors/app-error';
@@ -10,7 +11,14 @@ import { ERROR_CODE } from '../src/common/errors/error-code';
 describe('Dynamic RBAC Permission Middleware', () => {
   beforeEach(() => {
     permissionCacheService.clear();
+    AuthRepository.prototype.findById = async (userId: string): Promise<any> => {
+      if (userId === 'user-1') return { id: 'user-1', isActive: true, roleId: '11111111-1111-1111-1111-111111111111', role: { name: ROLES.ADMIN } };
+      if (userId === 'user-2') return { id: 'user-2', isActive: true, roleId: '22222222-2222-2222-2222-222222222222', role: { name: ROLES.USER } };
+      if (userId === 'user-3') return { id: 'user-3', isActive: true, roleId: '33333333-3333-3333-3333-333333333333', role: { name: ROLES.MANAGER } };
+      return null;
+    };
   });
+
 
   it('should deny unauthenticated requests with 401 Unauthorized', async () => {
     const middleware = requirePermission(PERMISSIONS.USER_READ);

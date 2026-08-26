@@ -17,7 +17,8 @@ export const DEFAULT_CRON_SCHEDULES: Record<CronJobName, { cron: string; descrip
   },
   'cleanup-unconfirmed-uploads': {
     cron: '0 3 * * *', // Daily at 03:00 AM UTC (10:00 AM UTC+7)
-    description: 'Quét và xóa các file upload rác/không xác nhận trên Cloudflare R2 / S3',
+    description: 'Quét và xóa các file upload rác/không xác nhận (avatars, themes) trên Cloudflare R2 / S3',
+
   },
   'cleanup-expired-tokens': {
     cron: '0 4 * * *', // Daily at 04:00 AM UTC (11:00 AM UTC+7)

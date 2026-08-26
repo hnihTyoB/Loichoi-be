@@ -58,18 +58,6 @@ export const createKeyboardSchema = z
       message: 'Theme ở trạng thái PUBLISHED bắt buộc phải có ít nhất 1 danh mục',
       path: ['categoryIds'],
     },
-  )
-  .refine(
-    (data) => {
-      if (data.accessLevel === 'DISCORD_ROLE' && (!data.requiredDiscordRoleIds || data.requiredDiscordRoleIds.length === 0)) {
-        return false;
-      }
-      return true;
-    },
-    {
-      message: 'Theme có cấp độ DISCORD_ROLE bắt buộc phải cung cấp ít nhất 1 ID Role của Discord Server',
-      path: ['requiredDiscordRoleIds'],
-    },
   );
 
 export const updateKeyboardSchema = z
@@ -115,19 +103,8 @@ export const updateKeyboardSchema = z
       message: 'Theme ở trạng thái PUBLISHED không được để trống danh mục',
       path: ['categoryIds'],
     },
-  )
-  .refine(
-    (data) => {
-      if (data.accessLevel === 'DISCORD_ROLE' && (!data.requiredDiscordRoleIds || data.requiredDiscordRoleIds.length === 0)) {
-        return false;
-      }
-      return true;
-    },
-    {
-      message: 'Theme có cấp độ DISCORD_ROLE bắt buộc phải cung cấp ít nhất 1 ID Role của Discord Server',
-      path: ['requiredDiscordRoleIds'],
-    },
   );
+
 
 export const keyboardIdParamSchema = z.object({
   id: z.string().uuid('ID theme phải là UUID hợp lệ'),
@@ -176,3 +153,18 @@ export const getThemeImageUploadUrlSchema = z.object({
   }),
   imageType: z.enum(['COVER', 'PREVIEW']).optional().default('COVER'),
 });
+
+export const getThemeBatchImageUploadUrlsSchema = z.object({
+  files: z
+    .array(
+      z.object({
+        contentType: z.enum(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'], {
+          errorMap: () => ({ message: 'contentType phải là một trong các định dạng: image/jpeg, image/png, image/webp, image/gif, image/avif' }),
+        }),
+        imageType: z.enum(['COVER', 'PREVIEW']).optional().default('COVER'),
+      }),
+    )
+    .min(1, 'Cần ít nhất 1 file để yêu cầu upload URL')
+    .max(15, 'Tối đa 15 file mỗi lần yêu cầu upload URL'),
+});
+

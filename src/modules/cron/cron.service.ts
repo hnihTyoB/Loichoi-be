@@ -11,7 +11,9 @@ import {
 import { AUDIT_ACTION, AUDIT_TARGET_TYPE, SYSTEM_TARGET_ID } from '../../common/constants/audit-log.constant';
 import { EMAIL_TEMPLATE_KEY, NOTIFICATION_CHANNEL } from '../../common/constants/notification.constant';
 import { formatVietnamDate, getVietnamDayRange } from '../../common/helpers/date.helper';
+import { extractR2Key } from '../../common/helpers/r2.helper';
 import { CronJobExecutionResultDto, CronJobItemDto } from './cron.dto';
+
 
 
 
@@ -79,28 +81,43 @@ export class CronService {
     const now = Date.now();
     const maxAgeMs = maxAgeHours * 60 * 60 * 1000;
 
-    // Lấy toàn bộ danh sách file trong thư mục avatars/
-    const objects = await this.r2Service.listObjects('avatars/');
-    if (objects.length === 0) {
+    // Lấy toàn bộ danh sách file trong thư mục avatars/ và themes/ trên R2
+    const [avatarObjects, themeObjects] = await Promise.all([
+      this.r2Service.listObjects('avatars/'),
+      this.r2Service.listObjects('themes/'),
+    ]);
+
+    const allObjects = [...avatarObjects, ...themeObjects];
+    if (allObjects.length === 0) {
       return { scannedCount: 0, deletedCount: 0, deletedKeys: [] };
     }
 
-    // Lấy toàn bộ các avatarUrl đang được User trong cơ sở dữ liệu liên kết
-    const activeUrls = await this.repository.getAllUserAvatarUrls();
+    // Lấy toàn bộ các avatarUrl và theme images đang được liên kết trong cơ sở dữ liệu
+    const [activeAvatarUrls, activeThemeUrls] = await Promise.all([
+      this.repository.getAllUserAvatarUrls(),
+      this.repository.getAllThemeImageUrls(),
+    ]);
+
     const activeKeySet = new Set<string>();
 
-    for (const url of activeUrls) {
-      // url có dạng https://.../avatars/user-id/xyz.webp -> lấy 'avatars/user-id/xyz.webp'
-      const match = url.match(/avatars\/.+$/);
-      if (match) {
-        activeKeySet.add(match[0]);
+    for (const url of activeAvatarUrls) {
+      const key = extractR2Key(url, 'avatars');
+      if (key) {
+        activeKeySet.add(key);
+      }
+    }
+
+    for (const url of activeThemeUrls) {
+      const key = extractR2Key(url, 'themes');
+      if (key) {
+        activeKeySet.add(key);
       }
     }
 
     const deletedKeys: string[] = [];
 
-    for (const obj of objects) {
-      // Nếu file chưa từng được liên kết với bất kỳ User nào và đã tồn tại quá maxAgeHours
+    for (const obj of allObjects) {
+      // Nếu file chưa từng được liên kết với bất kỳ User hay Theme nào và đã tồn tại quá maxAgeHours
       const isOrphaned = !activeKeySet.has(obj.key);
       const isOldEnough = obj.lastModified ? now - obj.lastModified.getTime() > maxAgeMs : false;
 
@@ -117,16 +134,17 @@ export class CronService {
         action: AUDIT_ACTION.CLEANUP_UNCONFIRMED_UPLOADS,
         targetType: AUDIT_TARGET_TYPE.CRON_JOB,
         targetId: CRON_JOB_NAMES.CLEANUP_UNCONFIRMED_UPLOADS,
-        details: { scannedCount: objects.length, deletedCount: deletedKeys.length, maxAgeHours },
+        details: { scannedCount: allObjects.length, deletedCount: deletedKeys.length, maxAgeHours },
       });
     }
 
     return {
-      scannedCount: objects.length,
+      scannedCount: allObjects.length,
       deletedCount: deletedKeys.length,
       deletedKeys,
     };
   }
+
 
   /**
    * 3. Dọn dẹp định kỳ các Token xác thực và phiên đã hết hạn

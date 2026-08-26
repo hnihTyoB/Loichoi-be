@@ -22,6 +22,9 @@ class MockCronRepository extends CronRepository {
     'https://pub-r2.example.com/avatars/user-1/active-avatar.webp',
     'https://pub-r2.example.com/avatars/user-2/profile.webp',
   ];
+  public mockThemeUrls = [
+    'https://pub-r2.example.com/themes/user-1/covers/active-theme.webp',
+  ];
   public mockStats = {
     newUsersCount: 25,
     activeSessionsCount: 140,
@@ -45,6 +48,10 @@ class MockCronRepository extends CronRepository {
 
   override async getAllUserAvatarUrls(): Promise<string[]> {
     return this.mockAvatarUrls;
+  }
+
+  override async getAllThemeImageUrls(): Promise<string[]> {
+    return this.mockThemeUrls;
   }
 
   override async getActivityStats(_startDate: Date, _endDate: Date) {
@@ -78,16 +85,31 @@ class MockR2Service extends R2Service {
       size: 3072,
     },
   ];
+  public themeObjects = [
+    {
+      key: 'themes/user-1/covers/active-theme.webp',
+      lastModified: new Date(Date.now() - 48 * 60 * 60 * 1000), // 48h old, active
+      size: 4096,
+    },
+    {
+      key: 'themes/user-99/previews/orphaned-preview.webp',
+      lastModified: new Date(Date.now() - 48 * 60 * 60 * 1000), // 48h old, orphaned!
+      size: 5120,
+    },
+  ];
   public deletedFiles: string[] = [];
 
-  override async listObjects(_prefix?: string) {
-    return this.bucketObjects;
+  override async listObjects(prefix?: string) {
+    if (prefix === 'themes/') return this.themeObjects;
+    if (prefix === 'avatars/') return this.bucketObjects;
+    return [...this.bucketObjects, ...this.themeObjects];
   }
 
   override async deleteFile(key: string): Promise<void> {
     this.deletedFiles.push(key);
   }
 }
+
 
 describe('Scheduled Tasks & BullMQ Cron Jobs Engine', () => {
   let mockRepo: MockCronRepository;
@@ -138,14 +160,21 @@ describe('Scheduled Tasks & BullMQ Cron Jobs Engine', () => {
 
   it('3. R2 Uploads Cleanup: should scan storage and delete only orphaned files older than maxAgeHours', async () => {
     const result = await cronService.executeUploadsCleanup(24);
-    assert.equal(result.scannedCount, 3);
-    assert.equal(result.deletedCount, 1);
-    assert.deepEqual(result.deletedKeys, ['avatars/user-99/orphaned-avatar.webp']);
-    assert.deepEqual(mockR2.deletedFiles, ['avatars/user-99/orphaned-avatar.webp']);
+    assert.equal(result.scannedCount, 5);
+    assert.equal(result.deletedCount, 2);
+    assert.deepEqual(result.deletedKeys, [
+      'avatars/user-99/orphaned-avatar.webp',
+      'themes/user-99/previews/orphaned-preview.webp',
+    ]);
+    assert.deepEqual(mockR2.deletedFiles, [
+      'avatars/user-99/orphaned-avatar.webp',
+      'themes/user-99/previews/orphaned-preview.webp',
+    ]);
 
     assert.equal(mockRepo.auditLogsCreated.length, 1);
     assert.equal(mockRepo.auditLogsCreated[0].action, AUDIT_ACTION.CLEANUP_UNCONFIRMED_UPLOADS);
   });
+
 
   it('4. Expired Tokens Cleanup: should purge expired refresh, verification, and reset tokens', async () => {
     const result = await cronService.executeExpiredTokensCleanup();

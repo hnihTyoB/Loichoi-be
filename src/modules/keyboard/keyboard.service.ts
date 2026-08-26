@@ -14,12 +14,16 @@ import {
   UpdateKeyboardDto,
   GetThemeImageUploadUrlDto,
   GetThemeImageUploadUrlResponseDto,
+  GetThemeBatchImageUploadUrlsDto,
+  GetThemeBatchImageUploadUrlsResponseDto,
 } from './keyboard.dto';
 import { AppError } from '../../common/errors/app-error';
 import { ERROR_CODE } from '../../common/errors/error-code';
 import { toSlug } from '../../common/helpers/slug.helper';
 import { formatVietnamDate, getVietnamDayRange } from '../../common/helpers/date.helper';
+import { extractR2Key } from '../../common/helpers/r2.helper';
 import { AUDIT_ACTION, AUDIT_TARGET_TYPE } from '../../common/constants/audit-log.constant';
+
 
 export class KeyboardService {
   private readonly repository = new KeyboardRepository();
@@ -44,6 +48,21 @@ export class KeyboardService {
       expiresIn: r2Config.presignedUrlExpiresIn,
     };
   }
+
+  async getBatchImageUploadUrls(
+    userId: string,
+    data: GetThemeBatchImageUploadUrlsDto,
+  ): Promise<GetThemeBatchImageUploadUrlsResponseDto> {
+    const items = await Promise.all(
+      data.files.map((file) => this.getImageUploadUrl(userId, file)),
+    );
+
+    return {
+      items,
+    };
+  }
+
+
 
   async findPublicList(query: KeyboardQueryDto, currentUserId?: string) {
     return this.repository.findPublicList(query, currentUserId);
@@ -226,6 +245,43 @@ export class KeyboardService {
       updatedBy: actorId,
     });
 
+    // Real-time Cleanup R2: Tự động phát hiện và xóa các ảnh cũ không còn được sử dụng
+    try {
+      const oldImageUrls = new Set<string>();
+      if (existing.coverUrl) oldImageUrls.add(existing.coverUrl);
+      if ((existing as any).previewImages && Array.isArray((existing as any).previewImages)) {
+        for (const img of (existing as any).previewImages) {
+          if (img.url) oldImageUrls.add(img.url);
+        }
+      }
+
+      const newImageUrls = new Set<string>();
+      const finalCoverUrl = data.coverUrl !== undefined ? data.coverUrl : existing.coverUrl;
+      if (finalCoverUrl) newImageUrls.add(finalCoverUrl);
+      if (data.previewImages !== undefined) {
+        for (const img of data.previewImages) {
+          if (img.url) newImageUrls.add(img.url);
+        }
+      } else if ((existing as any).previewImages && Array.isArray((existing as any).previewImages)) {
+        for (const img of (existing as any).previewImages) {
+          if (img.url) newImageUrls.add(img.url);
+        }
+      }
+
+      for (const oldUrl of oldImageUrls) {
+        if (!newImageUrls.has(oldUrl)) {
+          const r2Key = extractR2Key(oldUrl, 'themes');
+          if (r2Key) {
+            this.r2Service.deleteFile(r2Key).catch((err) => {
+              console.warn(`[KeyboardService] Failed to delete orphaned R2 image ${r2Key}:`, err.message);
+            });
+          }
+        }
+      }
+    } catch (cleanupErr: any) {
+      console.warn('[KeyboardService] Error during real-time image cleanup:', cleanupErr?.message);
+    }
+
     await this.repository.createAuditLog({
       actorId,
       action: AUDIT_ACTION.UPDATE_KEYBOARD,
@@ -292,6 +348,28 @@ export class KeyboardService {
       };
     }
 
+    // Xóa toàn bộ ảnh của theme trên R2 khi xóa vĩnh viễn
+    try {
+      const imagesToDelete: string[] = [];
+      if (existing.coverUrl) imagesToDelete.push(existing.coverUrl);
+      if ((existing as any).previewImages && Array.isArray((existing as any).previewImages)) {
+        for (const img of (existing as any).previewImages) {
+          if (img.url) imagesToDelete.push(img.url);
+        }
+      }
+
+      for (const imgUrl of imagesToDelete) {
+        const r2Key = extractR2Key(imgUrl, 'themes');
+        if (r2Key) {
+          this.r2Service.deleteFile(r2Key).catch((err) => {
+            console.warn(`[KeyboardService] Failed to delete R2 image on theme delete ${r2Key}:`, err.message);
+          });
+        }
+      }
+    } catch (cleanupErr: any) {
+      console.warn('[KeyboardService] Error deleting theme images from R2 on hard-delete:', cleanupErr?.message);
+    }
+
     await this.repository.delete(id);
 
     await this.repository.createAuditLog({
@@ -303,6 +381,7 @@ export class KeyboardService {
       ipAddress: metadata?.ipAddress,
       userAgent: metadata?.userAgent,
     });
+
 
     return {
       message: 'Theme deleted successfully',
@@ -420,10 +499,15 @@ export class KeyboardService {
       }
 
       if (theme.accessLevel === 'DISCORD_ROLE') {
+        let requiredRoleIds = theme.requiredDiscordRoleIds || [];
+
+        // Nếu theme không cấu hình Role ID riêng, tự động fallback lấy danh sách Role VIP từ SystemConfig
+        if (requiredRoleIds.length === 0) {
+          requiredRoleIds = await this.systemConfigService.get<string[]>('discord.vip_role_ids', []);
+        }
+
         const hasRequiredRole =
-          theme.requiredDiscordRoleIds &&
-          theme.requiredDiscordRoleIds.length > 0 &&
-          theme.requiredDiscordRoleIds.some((roleId) => memberInfo.roles.includes(roleId));
+          requiredRoleIds.length > 0 && requiredRoleIds.some((roleId) => memberInfo.roles.includes(roleId));
 
         if (!hasRequiredRole) {
           throw new AppError(
@@ -431,12 +515,13 @@ export class KeyboardService {
             403,
             ERROR_CODE.DISCORD_ROLE_REQUIRED,
             {
-              requiredRoleIds: theme.requiredDiscordRoleIds,
+              requiredRoleIds,
               inviteUrl: envConfig.discord.inviteUrl,
             },
           );
         }
       }
+
     }
 
     // ── 2. Kiểm tra Hạn mức Số lượt tải theo Cấp bậc (Tier Download Quotas) ───
@@ -476,12 +561,13 @@ export class KeyboardService {
         const freeLimit = await this.systemConfigService.get<number>('keyboard.tier_free_download_limit', 10);
         const memberLimit = await this.systemConfigService.get<number>('keyboard.tier_member_download_limit', 50);
 
-        // Xác định Cấp bậc người dùng (hỗ trợ cả Discord Role ID và mock role name)
+        // Xác định Cấp bậc người dùng (chỉ so khớp chính xác theo Role ID trong discord.vip_role_ids)
         const vipRoleIds = await this.systemConfigService.get<string[]>('discord.vip_role_ids', []);
         const isBoosterOrVip =
           memberInfo.inGuild &&
-          (memberInfo.roles.some((r) => vipRoleIds.includes(r)) ||
-            memberInfo.roles.some((r) => r.toUpperCase().includes('BOOSTER') || r.toUpperCase().includes('VIP')));
+          vipRoleIds.length > 0 &&
+          memberInfo.roles.some((r) => vipRoleIds.includes(r));
+
 
         if (isBoosterOrVip) {
           // VIP / Server Booster -> Unlimited Downloads

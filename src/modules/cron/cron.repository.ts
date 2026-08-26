@@ -60,6 +60,30 @@ export class CronRepository {
   }
 
   /**
+   * Lấy toàn bộ danh sách coverUrl và previewImages của KeyboardTheme đang lưu trong DB
+   */
+  async getAllThemeImageUrls(): Promise<string[]> {
+    const [themes, previewImages] = await Promise.all([
+      prisma.keyboardTheme.findMany({
+        select: { coverUrl: true },
+      }),
+      prisma.keyboardImage.findMany({
+        select: { url: true },
+      }),
+    ]);
+
+    const urls = new Set<string>();
+    for (const t of themes) {
+      if (t.coverUrl) urls.add(t.coverUrl);
+    }
+    for (const p of previewImages) {
+      if (p.url) urls.add(p.url);
+    }
+    return Array.from(urls);
+  }
+
+
+  /**
    * Tổng hợp thống kê hoạt động hệ thống trong khoảng thời gian từ startDate đến endDate
    */
   async getActivityStats(startDate: Date, endDate: Date): Promise<ActivitySummaryStatsDto> {
