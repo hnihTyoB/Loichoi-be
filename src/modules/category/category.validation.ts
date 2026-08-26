@@ -10,6 +10,10 @@ export const createCategorySchema = z.object({
     .max(100, 'Slug tối đa 100 ký tự')
     .regex(slugRegex, 'Slug chỉ được chứa chữ cái thường, số và dấu gạch ngang')
     .optional(),
+  description: z.string().max(500, 'Mô tả tối đa 500 ký tự').trim().optional(),
+  icon: z.string().max(100, 'Icon tối đa 100 ký tự').trim().optional(),
+  color: z.string().max(50, 'Màu sắc tối đa 50 ký tự').trim().optional(),
+  orderIndex: z.coerce.number().int().min(0).default(0),
   isActive: z.boolean().optional().default(true),
 });
 
@@ -21,6 +25,10 @@ export const updateCategorySchema = z.object({
     .max(100, 'Slug tối đa 100 ký tự')
     .regex(slugRegex, 'Slug chỉ được chứa chữ cái thường, số và dấu gạch ngang')
     .optional(),
+  description: z.string().max(500, 'Mô tả tối đa 500 ký tự').trim().optional(),
+  icon: z.string().max(100, 'Icon tối đa 100 ký tự').trim().optional(),
+  color: z.string().max(50, 'Màu sắc tối đa 50 ký tự').trim().optional(),
+  orderIndex: z.coerce.number().int().min(0).optional(),
   isActive: z.boolean().optional(),
 });
 

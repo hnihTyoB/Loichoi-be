@@ -3,6 +3,7 @@ import { KeyboardRepository } from '../keyboard/keyboard.repository';
 import { systemConfigService, SystemConfigService } from '../system-config/system-config.service';
 import {
   CollectionQueryDto,
+  CollectionManagementQueryDto,
   CreateCollectionDto,
   UpdateCollectionDto,
 } from './collection.dto';
@@ -16,6 +17,10 @@ export class CollectionService {
   private readonly repository = new CollectionRepository();
   private readonly keyboardRepository = new KeyboardRepository();
   private readonly systemConfigService: SystemConfigService = systemConfigService;
+
+  async findManagementList(query: CollectionManagementQueryDto) {
+    return this.repository.findManagementList(query);
+  }
 
   async findPublicList(query: CollectionQueryDto) {
     return this.repository.findPublicList(query);

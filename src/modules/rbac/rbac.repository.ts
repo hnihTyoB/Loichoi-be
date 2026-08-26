@@ -236,18 +236,82 @@ export class RbacRepository {
   }
 
   async findAllAuditLogs(query: AuditLogQueryDto) {
-    const { actorId, action, targetType, targetId, page = 1, limit = 20 } = query;
+    const { actorId, action, targetType, targetId, startDate, endDate, search, page = 1, limit = 20 } = query;
+
+    const createdAtFilter: Prisma.DateTimeFilter = {};
+    if (startDate) {
+      createdAtFilter.gte = new Date(startDate);
+    }
+    if (endDate) {
+      const end = new Date(endDate);
+      if (end.getHours() === 0 && end.getMinutes() === 0 && end.getSeconds() === 0 && end.getMilliseconds() === 0) {
+        end.setHours(23, 59, 59, 999);
+      }
+      createdAtFilter.lte = end;
+    }
+
+    let matchingActorIds: string[] = [];
+    if (actorId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(actorId)) {
+      const users = await prisma.user.findMany({
+        where: {
+          OR: [
+            { email: { contains: actorId, mode: 'insensitive' } },
+            { username: { contains: actorId, mode: 'insensitive' } },
+          ],
+        },
+        select: { id: true },
+      });
+      matchingActorIds = users.map((u) => u.id);
+    }
+
+    let searchUserIds: string[] = [];
+    if (search) {
+      const matchedUsers = await prisma.user.findMany({
+        where: {
+          OR: [
+            { email: { contains: search, mode: 'insensitive' } },
+            { fullName: { contains: search, mode: 'insensitive' } },
+            { username: { contains: search, mode: 'insensitive' } },
+          ],
+        },
+        select: { id: true },
+      });
+      searchUserIds = matchedUsers.map((u) => u.id);
+    }
 
     const where: Prisma.AuditLogWhereInput = {
-      ...(actorId ? { actorId } : {}),
-      ...(action ? { action } : {}),
+      ...(actorId
+        ? matchingActorIds.length > 0
+          ? { actorId: { in: matchingActorIds } }
+          : /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(actorId)
+          ? { actorId }
+          : { actorId: '__NOT_FOUND__' }
+        : {}),
+      ...(action ? { action: { contains: action, mode: 'insensitive' } } : {}),
       ...(targetType ? { targetType } : {}),
       ...(targetId ? { targetId } : {}),
+      ...(startDate || endDate ? { createdAt: createdAtFilter } : {}),
+      ...(search
+        ? {
+            OR: [
+              { action: { contains: search, mode: 'insensitive' } },
+              { targetType: { contains: search, mode: 'insensitive' } },
+              { targetId: { contains: search, mode: 'insensitive' } },
+              { ipAddress: { contains: search, mode: 'insensitive' } },
+              ...(searchUserIds.length > 0
+                ? [
+                    { actorId: { in: searchUserIds } },
+                    { targetId: { in: searchUserIds } },
+                  ]
+                : []),
+            ],
+          }
+        : {}),
     };
 
     const skip = (page - 1) * limit;
 
-    const [data, total] = await prisma.$transaction([
+    const [rawLogs, total] = await prisma.$transaction([
       prisma.auditLog.findMany({
         where,
         orderBy: { createdAt: 'desc' },
@@ -256,6 +320,65 @@ export class RbacRepository {
       }),
       prisma.auditLog.count({ where }),
     ]);
+
+    const userIds = new Set<string>();
+    for (const log of rawLogs) {
+      if (log.actorId) userIds.add(log.actorId);
+      if (log.targetType === 'USER' && log.targetId) userIds.add(log.targetId);
+    }
+
+    const users =
+      userIds.size > 0
+        ? await prisma.user.findMany({
+            where: { id: { in: Array.from(userIds) } },
+            select: { id: true, email: true, fullName: true, username: true },
+          })
+        : [];
+
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
+    const data = rawLogs.map((log) => {
+      const actor = log.actorId ? userMap.get(log.actorId) || null : null;
+      const targetUser = log.targetType === 'USER' && log.targetId ? userMap.get(log.targetId) || null : null;
+      const details = (log.details as Record<string, unknown> | null) || {};
+
+      const actorEmail = actor?.email || (typeof details.actorEmail === 'string' ? details.actorEmail : null);
+      const targetEmail =
+        targetUser?.email ||
+        (typeof details.userEmail === 'string'
+          ? details.userEmail
+          : typeof details.targetEmail === 'string'
+          ? details.targetEmail
+          : typeof details.email === 'string'
+          ? details.email
+          : null);
+
+      let targetLabel: string | null = null;
+      if (log.targetType === 'USER') {
+        targetLabel = targetEmail || targetUser?.fullName || targetUser?.username || log.targetId;
+      } else if (typeof details.roleName === 'string') {
+        targetLabel = details.roleName;
+      } else if (typeof details.themeName === 'string') {
+        targetLabel = details.themeName;
+      } else if (typeof details.categoryName === 'string') {
+        targetLabel = details.categoryName;
+      } else if (typeof details.key === 'string') {
+        targetLabel = details.key;
+      } else if (typeof details.templateCode === 'string') {
+        targetLabel = details.templateCode;
+      } else if (typeof details.collectionName === 'string') {
+        targetLabel = details.collectionName;
+      }
+
+      return {
+        ...log,
+        actor,
+        actorEmail,
+        targetUser,
+        targetEmail,
+        targetLabel,
+      };
+    });
 
     return {
       data,

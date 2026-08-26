@@ -6,7 +6,7 @@ export class CategoryRepository {
   async findPublicCategories() {
     const categories = await prisma.category.findMany({
       where: { isActive: true },
-      orderBy: { name: 'asc' },
+      orderBy: [{ orderIndex: 'asc' }, { name: 'asc' }],
       include: {
         _count: {
           select: {
@@ -24,6 +24,10 @@ export class CategoryRepository {
       id: cat.id,
       name: cat.name,
       slug: cat.slug,
+      description: cat.description,
+      icon: cat.icon,
+      color: cat.color,
+      orderIndex: cat.orderIndex,
       themeCount: cat._count.themes,
     }));
   }
@@ -41,7 +45,7 @@ export class CategoryRepository {
     const [items, total] = await prisma.$transaction([
       prisma.category.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ orderIndex: 'asc' }, { createdAt: 'desc' }],
         skip,
         take: limit,
         include: {
@@ -57,6 +61,10 @@ export class CategoryRepository {
       id: cat.id,
       name: cat.name,
       slug: cat.slug,
+      description: cat.description,
+      icon: cat.icon,
+      color: cat.color,
+      orderIndex: cat.orderIndex,
       isActive: cat.isActive,
       themeCount: cat._count.themes,
       createdAt: cat.createdAt,
@@ -100,17 +108,40 @@ export class CategoryRepository {
     });
   }
 
-  create(data: { name: string; slug: string; isActive?: boolean }) {
+  create(data: {
+    name: string;
+    slug: string;
+    description?: string;
+    icon?: string;
+    color?: string;
+    orderIndex?: number;
+    isActive?: boolean;
+  }) {
     return prisma.category.create({
       data: {
         name: data.name,
         slug: data.slug,
+        description: data.description,
+        icon: data.icon,
+        color: data.color,
+        orderIndex: data.orderIndex ?? 0,
         isActive: data.isActive ?? true,
       },
     });
   }
 
-  update(id: string, data: { name?: string; slug?: string; isActive?: boolean }) {
+  update(
+    id: string,
+    data: {
+      name?: string;
+      slug?: string;
+      description?: string;
+      icon?: string;
+      color?: string;
+      orderIndex?: number;
+      isActive?: boolean;
+    },
+  ) {
     return prisma.category.update({
       where: { id },
       data,

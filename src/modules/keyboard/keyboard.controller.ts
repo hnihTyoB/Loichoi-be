@@ -5,10 +5,25 @@ import {
   KeyboardManagementQueryDto,
   CreateKeyboardDto,
   UpdateKeyboardDto,
+  GetThemeImageUploadUrlDto,
 } from './keyboard.dto';
 
 export class KeyboardController {
   private readonly service = new KeyboardService();
+
+  getImageUploadUrl = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const body = req.body as GetThemeImageUploadUrlDto;
+      const userId = req.user!.id;
+      const result = await this.service.getImageUploadUrl(userId, body);
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 
   findPublicList = async (req: Request, res: Response, next: NextFunction) => {
     try {

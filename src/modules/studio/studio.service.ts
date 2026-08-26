@@ -8,6 +8,7 @@ import {
   StudioUpdateProfileDto,
   StudioApplyDto,
 } from './studio.dto';
+import { GetThemeImageUploadUrlDto } from '../keyboard/keyboard.dto';
 import { AppError } from '../../common/errors/app-error';
 import { ERROR_CODE } from '../../common/errors/error-code';
 import { AUDIT_ACTION, AUDIT_TARGET_TYPE } from '../../common/constants/audit-log.constant';
@@ -17,6 +18,15 @@ export class StudioService {
   private readonly repository = new StudioRepository();
   private readonly keyboardService = new KeyboardService();
   private readonly systemConfigService: SystemConfigService = systemConfigService;
+
+  async getImageUploadUrl(userId: string, data: GetThemeImageUploadUrlDto) {
+    await this.ensureCreatorStudioEnabled();
+    const user = await this.repository.findUserById(userId);
+    if (!user || !user.isActive || !user.isCreator) {
+      throw new AppError('Bạn không có quyền truy cập Studio', 403, ERROR_CODE.CREATOR_ACCESS_DENIED);
+    }
+    return this.keyboardService.getImageUploadUrl(userId, data);
+  }
 
   private async ensureCreatorStudioEnabled() {
     const isEnabled = await this.systemConfigService.isFeatureEnabled(
@@ -148,8 +158,12 @@ export class StudioService {
       throw new AppError('Tài khoản của bạn đã bị khóa hoặc không tồn tại', 403, ERROR_CODE.USER_INACTIVE);
     }
 
-    if (user.isCreator) {
+    if (user.isCreator || user.creatorStatus === 'APPROVED') {
       throw new AppError('Bạn đã là Người sáng tạo (Creator) trên nền tảng', 400, ERROR_CODE.ALREADY_CREATOR);
+    }
+
+    if (user.creatorStatus === 'PENDING') {
+      throw new AppError('Đơn đăng ký Creator của bạn đang trong quá trình xét duyệt', 400, ERROR_CODE.APPLICATION_ALREADY_PROCESSED);
     }
 
     const isTaken = await this.repository.isUsernameTaken(data.username, userId);
@@ -170,7 +184,7 @@ export class StudioService {
     });
 
     return {
-      message: 'Chúc mừng bạn đã trở thành Người sáng tạo (Creator) trên KeyboardHub!',
+      message: 'Đơn đăng ký trở thành Người sáng tạo (Creator) đã được gửi thành công. Vui lòng chờ quản trị viên phê duyệt!',
       creator,
     };
   }

@@ -96,3 +96,7 @@ export const confirmAvatarUploadSchema = z.object({
     .min(1, 'Key is required')
     .regex(/^avatars\/[a-f0-9-]+\/\d+\.[a-z]+$/, 'Invalid avatar key format'),
 });
+
+export const deviceIdParamSchema = z.object({
+  id: z.string().uuid('ID thiết bị phải là UUID hợp lệ'),
+});

@@ -72,3 +72,26 @@ export const collectionQuerySchema = z.object({
   creator: z.string().trim().optional(),
   sort: z.enum(['LATEST', 'FEATURED', 'NAME_ASC', 'NAME_DESC']).optional().default('LATEST'),
 });
+
+export const collectionManagementQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  search: z.string().trim().optional(),
+  isPublic: z
+    .preprocess((val) => {
+      if (val === 'true' || val === true) return true;
+      if (val === 'false' || val === false) return false;
+      return undefined;
+    }, z.boolean().optional())
+    .optional(),
+  isFeatured: z
+    .preprocess((val) => {
+      if (val === 'true' || val === true) return true;
+      if (val === 'false' || val === false) return false;
+      return undefined;
+    }, z.boolean().optional())
+    .optional(),
+  creator: z.string().trim().optional(),
+  userId: z.string().uuid('User ID không hợp lệ').optional(),
+  sort: z.enum(['LATEST', 'FEATURED', 'NAME_ASC', 'NAME_DESC']).optional().default('LATEST'),
+});

@@ -388,6 +388,25 @@ export class AuthService {
     await this.repository.deleteOtherSessions(userId, currentToken);
   }
 
+  async getUserDevices(userId: string) {
+    const devices = await this.repository.findDevicesByUserId(userId);
+    return devices.map((d) => ({
+      id: d.id,
+      deviceName: d.deviceName || 'Thiết bị không rõ',
+      ipAddress: d.ipAddress || 'Không rõ',
+      lastLoginAt: d.lastLoginAt,
+      createdAt: d.createdAt,
+    }));
+  }
+
+  async deleteUserDevice(userId: string, deviceId: string) {
+    const device = await this.repository.findDeviceById(userId, deviceId);
+    if (!device) {
+      throw new AppError('Thiết bị không tồn tại', 404, ERROR_CODE.DEVICE_NOT_FOUND);
+    }
+    await this.repository.deleteDeviceById(userId, deviceId);
+  }
+
   /**
    * Bước 1: Tạo presigned PUT URL để client upload avatar trực tiếp lên R2.
    * Client cần crop ảnh trước khi upload (server không xử lý ảnh).

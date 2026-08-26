@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { CollectionService } from './collection.service';
 import {
   CollectionQueryDto,
+  CollectionManagementQueryDto,
   CreateCollectionDto,
   UpdateCollectionDto,
   AddCollectionItemDto,
@@ -9,6 +10,19 @@ import {
 
 export class CollectionController {
   private readonly service = new CollectionService();
+
+  findManagementList = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const query = req.query as unknown as CollectionManagementQueryDto;
+      const result = await this.service.findManagementList(query);
+      res.json({
+        success: true,
+        ...result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 
   findPublicList = async (req: Request, res: Response, next: NextFunction) => {
     try {

@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { collectionController } from './collection.controller';
 import { authMiddleware } from '../../middlewares/auth.middleware';
+import { requirePermission } from '../../middlewares/permission.middleware';
 import { validate } from '../../middlewares/validate.middleware';
+import { PERMISSIONS } from '../../common/constants/permission.constant';
 import {
   createCollectionSchema,
   updateCollectionSchema,
@@ -10,9 +12,18 @@ import {
   collectionThemeParamSchema,
   addCollectionThemeSchema,
   collectionQuerySchema,
+  collectionManagementQuerySchema,
 } from './collection.validation';
 
 const router = Router();
+
+router.get(
+  '/manage',
+  authMiddleware,
+  requirePermission(PERMISSIONS.COLLECTION_READ),
+  validate(collectionManagementQuerySchema, 'query'),
+  collectionController.findManagementList,
+);
 
 router.get(
   '/',

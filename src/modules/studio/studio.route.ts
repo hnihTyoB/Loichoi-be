@@ -9,9 +9,16 @@ import {
   studioCreateThemeSchema,
   studioUpdateThemeSchema,
 } from './studio.validation';
-import { keyboardIdParamSchema } from '../keyboard/keyboard.validation';
+import { keyboardIdParamSchema, getThemeImageUploadUrlSchema } from '../keyboard/keyboard.validation';
 
 const router = Router();
+
+router.post(
+  '/upload-url',
+  authMiddleware,
+  validate(getThemeImageUploadUrlSchema),
+  studioController.getImageUploadUrl,
+);
 
 router.get(
   '/stats',

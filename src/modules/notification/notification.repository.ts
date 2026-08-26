@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../database/prisma.client';
 import { SYSTEM_TARGET_ID } from '../../common/constants/audit-log.constant';
 import { EMAIL_MAX_ATTEMPTS } from '../../common/constants/notification.constant';
@@ -91,10 +92,21 @@ export class NotificationRepository {
     });
   }
 
-  getActiveUsersChunk(take = 500, cursorId?: string) {
+  getActiveUsersChunk(
+    take = 500,
+    cursorId?: string,
+    filter?: { roleIds?: string[]; roleNames?: string[] },
+  ) {
+    const where: Prisma.UserWhereInput = {
+      isActive: true,
+      deletedAt: null,
+      ...(filter?.roleIds && filter.roleIds.length > 0 ? { roleId: { in: filter.roleIds } } : {}),
+      ...(filter?.roleNames && filter.roleNames.length > 0 ? { role: { name: { in: filter.roleNames } } } : {}),
+    };
+
     return prisma.user.findMany({
-      where: { isActive: true, deletedAt: null },
-      select: { id: true },
+      where,
+      select: { id: true, email: true },
       orderBy: { id: 'asc' },
       take,
       ...(cursorId ? { skip: 1, cursor: { id: cursorId } } : {}),
@@ -176,12 +188,20 @@ export class NotificationRepository {
       userId: string;
       toEmail: string;
       subject: string;
-      templateKey: string;
-      templateData: any;
-      status: string;
+      templateKey?: string;
+      templateData?: any;
+      status?: string;
     }>,
   ) {
-    return prisma.emailNotification.createMany({ data });
+    const records = data.map((d) => ({
+      userId: d.userId,
+      toEmail: d.toEmail,
+      subject: d.subject,
+      templateKey: d.templateKey || 'GENERAL_BROADCAST',
+      templateData: d.templateData || {},
+      status: d.status || 'PENDING',
+    }));
+    return prisma.emailNotification.createMany({ data: records });
   }
 
   createMultiChannelNotifications(

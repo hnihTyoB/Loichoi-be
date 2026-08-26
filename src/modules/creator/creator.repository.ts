@@ -1,8 +1,112 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../database/prisma.client';
-import { CreatorQueryDto, CreatorProfileStatsDto } from './creator.dto';
+import { CreatorQueryDto, CreatorProfileStatsDto, CreatorApplicationQueryDto } from './creator.dto';
 
 export class CreatorRepository {
+  async findApplications(query: CreatorApplicationQueryDto) {
+    const { page = 1, limit = 20, search, status = 'PENDING' } = query;
+
+    const where: Prisma.UserWhereInput = {
+      deletedAt: null,
+      ...(status === 'ALL'
+        ? { creatorStatus: { not: 'NONE' } }
+        : { creatorStatus: status }),
+      ...(search
+        ? {
+            OR: [
+              { fullName: { contains: search, mode: 'insensitive' } },
+              { username: { contains: search, mode: 'insensitive' } },
+              { email: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
+
+    const skip = (page - 1) * limit;
+
+    const [users, total] = await prisma.$transaction([
+      prisma.user.findMany({
+        where,
+        orderBy: { creatorAppliedAt: 'desc' },
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          fullName: true,
+          username: true,
+          email: true,
+          bio: true,
+          avatarUrl: true,
+          isCreator: true,
+          creatorStatus: true,
+          creatorAppliedAt: true,
+          creatorRejectReason: true,
+          createdAt: true,
+        },
+      }),
+      prisma.user.count({ where }),
+    ]);
+
+    return {
+      data: users,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async findUserById(userId: string) {
+    return prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        fullName: true,
+        username: true,
+        email: true,
+        bio: true,
+        avatarUrl: true,
+        isCreator: true,
+        creatorStatus: true,
+        creatorAppliedAt: true,
+        creatorRejectReason: true,
+      },
+    });
+  }
+
+  async approveApplication(userId: string) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: {
+        isCreator: true,
+        creatorStatus: 'APPROVED',
+        creatorRejectReason: null,
+      },
+    });
+  }
+
+  async rejectApplication(userId: string, reason?: string) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: {
+        isCreator: false,
+        creatorStatus: 'REJECTED',
+        creatorRejectReason: reason || 'Hồ sơ chưa đạt yêu cầu của nền tảng.',
+      },
+    });
+  }
+
+  async revokeCreator(userId: string) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: {
+        isCreator: false,
+        creatorStatus: 'NONE',
+      },
+    });
+  }
   async getCreatorStats(userId: string): Promise<CreatorProfileStatsDto> {
     const [themesCount, downloadStats, followersCount, collectionsCount] = await Promise.all([
       prisma.keyboardTheme.count({

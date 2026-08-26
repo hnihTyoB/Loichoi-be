@@ -257,6 +257,31 @@ export class AuthController {
     }
   };
 
+  getDevices = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = await this.service.getUserDevices(req.user.id);
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  deleteDevice = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      await this.service.deleteUserDevice(req.user.id, id);
+      res.json({
+        success: true,
+        message: 'Thiết bị đã được xóa thành công',
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   /**
    * Bước 1: Trả về presigned PUT URL để client upload avatar trực tiếp lên R2.
    * Client phải tự crop ảnh trước khi PUT lên uploadUrl.

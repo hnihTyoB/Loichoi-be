@@ -7,9 +7,24 @@ import {
   StudioUpdateProfileDto,
   StudioApplyDto,
 } from './studio.dto';
+import { GetThemeImageUploadUrlDto } from '../keyboard/keyboard.dto';
 
 export class StudioController {
   private readonly service = new StudioService();
+
+  getImageUploadUrl = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user!.id;
+      const body = req.body as GetThemeImageUploadUrlDto;
+      const result = await this.service.getImageUploadUrl(userId, body);
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 
   getDashboardStats = async (req: Request, res: Response, next: NextFunction) => {
     try {

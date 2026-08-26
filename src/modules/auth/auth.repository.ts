@@ -269,6 +269,25 @@ export class AuthRepository {
     });
   }
 
+  async findDevicesByUserId(userId: string) {
+    return prisma.userDevice.findMany({
+      where: { userId },
+      orderBy: { lastLoginAt: 'desc' },
+    });
+  }
+
+  async findDeviceById(userId: string, deviceId: string) {
+    return prisma.userDevice.findFirst({
+      where: { id: deviceId, userId },
+    });
+  }
+
+  async deleteDeviceById(userId: string, deviceId: string) {
+    return prisma.userDevice.deleteMany({
+      where: { id: deviceId, userId },
+    });
+  }
+
   async findSessionsByUserId(userId: string) {
     return prisma.refreshToken.findMany({
       where: { userId },

@@ -169,3 +169,10 @@ export const keyboardManagementQuerySchema = z.object({
     .optional(),
   sort: z.string().optional().default('createdAt_desc'),
 });
+
+export const getThemeImageUploadUrlSchema = z.object({
+  contentType: z.enum(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'], {
+    errorMap: () => ({ message: 'contentType phải là một trong các định dạng: image/jpeg, image/png, image/webp, image/gif, image/avif' }),
+  }),
+  imageType: z.enum(['COVER', 'PREVIEW']).optional().default('COVER'),
+});

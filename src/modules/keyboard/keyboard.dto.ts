@@ -169,3 +169,15 @@ export interface KeyboardManagementQueryDto {
   isFeatured?: boolean;
   sort?: string;
 }
+
+export interface GetThemeImageUploadUrlDto {
+  contentType: string;
+  imageType?: 'COVER' | 'PREVIEW';
+}
+
+export interface GetThemeImageUploadUrlResponseDto {
+  uploadUrl: string;
+  publicUrl: string;
+  key: string;
+  expiresIn: number;
+}

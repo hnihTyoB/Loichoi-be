@@ -71,30 +71,45 @@ sequenceDiagram
 | `USER` | `CREATE` | `USER_CREATE` | Create new user accounts |
 | `USER` | `UPDATE` | `USER_UPDATE` | Update user status and roles |
 | `USER` | `DELETE` | `USER_DELETE` | Soft delete user accounts |
-| `WALLET` | `READ` | `WALLET_READ` | View wallet details and balance |
-| `WALLET` | `CREATE` | `WALLET_CREATE` | Create new wallet |
-| `WALLET` | `UPDATE` | `WALLET_UPDATE` | Update wallet information |
-| `WALLET` | `DELETE` | `WALLET_DELETE` | Delete wallet |
-| `TRANSACTION` | `READ` | `TRANSACTION_READ` | View transaction history |
-| `TRANSACTION` | `CREATE` | `TRANSACTION_CREATE` | Create income/expense/transfer transaction |
-| `TRANSACTION` | `UPDATE` | `TRANSACTION_UPDATE` | Edit existing transaction |
-| `TRANSACTION` | `DELETE` | `TRANSACTION_DELETE` | Delete transaction |
-| `CATEGORY` | `READ` | `CATEGORY_READ` | View categories |
-| `CATEGORY` | `CREATE` | `CATEGORY_CREATE` | Create custom category |
-| `CATEGORY` | `UPDATE` | `CATEGORY_UPDATE` | Edit category |
-| `CATEGORY` | `DELETE` | `CATEGORY_DELETE` | Delete category |
-| `BUDGET` | `READ` | `BUDGET_READ` | View budgets and progress |
-| `BUDGET` | `CREATE` | `BUDGET_CREATE` | Set budget |
-| `BUDGET` | `UPDATE` | `BUDGET_UPDATE` | Edit budget |
-| `BUDGET` | `DELETE` | `BUDGET_DELETE` | Remove budget |
-| `REPORT` | `READ` | `REPORT_READ` | View financial analytics and reports |
+| `USER` | `ASSIGN_ROLE` | `USER_ROLE_ASSIGN` | Assign role to users |
 | `ROLE` | `READ` | `ROLE_READ` | View roles and role permissions |
 | `ROLE` | `CREATE` | `ROLE_CREATE` | Create new custom roles |
 | `ROLE` | `UPDATE` | `ROLE_UPDATE` | Edit role information |
 | `ROLE` | `DELETE` | `ROLE_DELETE` | Delete non-system roles |
 | `PERMISSION` | `READ` | `PERMISSION_READ` | View system permission catalog |
 | `ROLE_PERMISSION` | `ASSIGN` | `ROLE_PERMISSION_ASSIGN` | Assign/revoke permissions to/from roles |
+| `NOTIFICATION` | `READ` | `NOTIFICATION_READ` | View system notifications and logs |
+| `NOTIFICATION` | `CREATE` | `NOTIFICATION_CREATE` | Send notifications to users |
+| `NOTIFICATION` | `UPDATE` | `NOTIFICATION_UPDATE` | Retry failed email deliveries |
+| `NOTIFICATION` | `DELETE` | `NOTIFICATION_DELETE` | Delete notification logs |
+| `NOTIFICATION_TEMPLATE` | `READ` | `NOTIFICATION_TEMPLATE_READ` | View email/notification templates |
+| `NOTIFICATION_TEMPLATE` | `MANAGE` | `NOTIFICATION_TEMPLATE_MANAGE` | Create and edit notification templates |
 | `AUDIT_LOG` | `READ` | `AUDIT_LOG_READ` | View security and RBAC audit logs |
+| `MAINTENANCE` | `READ` | `MAINTENANCE_READ` | View maintenance state and config |
+| `MAINTENANCE` | `MANAGE` | `MAINTENANCE_MANAGE` | Configure maintenance windows and IPs |
+| `MAINTENANCE` | `BYPASS` | `MAINTENANCE_BYPASS` | Access system during maintenance mode |
+| `API_KEY` | `READ` | `API_KEY_READ` | View API keys and usages |
+| `API_KEY` | `MANAGE` | `API_KEY_MANAGE` | Create and revoke API keys |
+| `WEBHOOK` | `READ` | `WEBHOOK_READ` | View webhook configurations and logs |
+| `WEBHOOK` | `MANAGE` | `WEBHOOK_MANAGE` | Create, test, and manage webhooks |
+| `SYSTEM_CONFIG` | `READ` | `SYSTEM_CONFIG_READ` | View system configuration flags |
+| `SYSTEM_CONFIG` | `MANAGE` | `SYSTEM_CONFIG_MANAGE` | Modify system configurations |
+| `CRON_JOB` | `READ` | `CRON_JOB_READ` | View cron execution history |
+| `CRON_JOB` | `MANAGE` | `CRON_JOB_MANAGE` | Trigger and configure scheduled jobs |
+| `KEYBOARD` | `READ` | `KEYBOARD_READ` | View keyboard themes catalog |
+| `KEYBOARD` | `CREATE` | `KEYBOARD_CREATE` | Create new keyboard theme |
+| `KEYBOARD` | `UPDATE` | `KEYBOARD_UPDATE` | Update keyboard theme metadata |
+| `KEYBOARD` | `DELETE` | `KEYBOARD_DELETE` | Delete or archive keyboard theme |
+| `CATEGORY` | `READ` | `CATEGORY_READ` | View theme categories |
+| `CATEGORY` | `CREATE` | `CATEGORY_CREATE` | Create new theme category |
+| `CATEGORY` | `UPDATE` | `CATEGORY_UPDATE` | Edit theme category |
+| `CATEGORY` | `DELETE` | `CATEGORY_DELETE` | Delete theme category |
+| `COLLECTION` | `READ` | `COLLECTION_READ` | View curated collections |
+| `COLLECTION` | `CREATE` | `COLLECTION_CREATE` | Create theme collection |
+| `COLLECTION` | `UPDATE` | `COLLECTION_UPDATE` | Update theme collection |
+| `COLLECTION` | `DELETE` | `COLLECTION_DELETE` | Delete theme collection |
+| `STUDIO` | `ACCESS` | `STUDIO_ACCESS` | Access Creator Studio workspace |
+| `CREATOR` | `MANAGE` | `CREATOR_MANAGE` | Review and manage creator applications |
 
 ---
 

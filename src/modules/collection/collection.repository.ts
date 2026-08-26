@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../database/prisma.client';
 import {
   CollectionQueryDto,
+  CollectionManagementQueryDto,
   CreateCollectionDto,
   UpdateCollectionDto,
 } from './collection.dto';
@@ -14,6 +15,104 @@ const creatorSummarySelect = {
 } satisfies Prisma.UserSelect;
 
 export class CollectionRepository {
+  async findManagementList(query: CollectionManagementQueryDto) {
+    const { page = 1, limit = 20, search, isPublic, isFeatured, creator, userId, sort = 'LATEST' } = query;
+
+    const where: Prisma.CollectionWhereInput = {
+      ...(isPublic !== undefined ? { isPublic } : {}),
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: 'insensitive' } },
+              { description: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+      ...(isFeatured !== undefined ? { isFeatured } : {}),
+      ...(userId ? { userId } : {}),
+      ...(creator
+        ? {
+            user: {
+              username: creator,
+            },
+          }
+        : {}),
+    };
+
+    let orderBy: Prisma.CollectionOrderByWithRelationInput[] = [{ createdAt: 'desc' }];
+    if (sort === 'FEATURED') {
+      orderBy = [{ isFeatured: 'desc' }, { createdAt: 'desc' }];
+    } else if (sort === 'NAME_ASC') {
+      orderBy = [{ name: 'asc' }];
+    } else if (sort === 'NAME_DESC') {
+      orderBy = [{ name: 'desc' }];
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [collections, total] = await prisma.$transaction([
+      prisma.collection.findMany({
+        where,
+        orderBy,
+        skip,
+        take: limit,
+        include: {
+          user: {
+            select: creatorSummarySelect,
+          },
+          items: {
+            take: 4,
+            orderBy: { position: 'asc' },
+            include: {
+              theme: {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                  coverUrl: true,
+                },
+              },
+            },
+          },
+          _count: {
+            select: { items: true },
+          },
+        },
+      }),
+      prisma.collection.count({ where }),
+    ]);
+
+    const data = collections.map((col) => ({
+      id: col.id,
+      name: col.name,
+      slug: col.slug,
+      description: col.description,
+      coverUrl: col.coverUrl,
+      isPublic: col.isPublic,
+      isFeatured: col.isFeatured,
+      creator: col.user,
+      itemsCount: col._count.items,
+      previewThemes: col.items.map((it) => ({
+        id: it.theme.id,
+        name: it.theme.name,
+        slug: it.theme.slug,
+        coverUrl: it.theme.coverUrl,
+      })),
+      createdAt: col.createdAt,
+      updatedAt: col.updatedAt,
+    }));
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
   async findPublicList(query: CollectionQueryDto) {
     const { page = 1, limit = 20, search, isFeatured, creator, sort = 'LATEST' } = query;
 

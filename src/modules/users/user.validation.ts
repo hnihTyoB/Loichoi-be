@@ -38,3 +38,13 @@ export const createUserSchema = z.object({
 export const updateUserSchema = z.object({
   isActive: z.boolean().optional(),
 });
+
+export const userSessionParamsSchema = z.object({
+  id: z.string().uuid('ID người dùng phải là UUID hợp lệ'),
+  sessionId: z.string().uuid('ID phiên đăng nhập phải là UUID hợp lệ'),
+});
+
+export const userDeviceParamsSchema = z.object({
+  id: z.string().uuid('ID người dùng phải là UUID hợp lệ'),
+  deviceId: z.string().uuid('ID thiết bị phải là UUID hợp lệ'),
+});

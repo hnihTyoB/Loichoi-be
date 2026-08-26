@@ -43,6 +43,10 @@ export class CategoryService {
     const category = await this.repository.create({
       name: data.name,
       slug,
+      description: data.description,
+      icon: data.icon,
+      color: data.color,
+      orderIndex: data.orderIndex,
       isActive: data.isActive ?? true,
     });
 
@@ -51,7 +55,14 @@ export class CategoryService {
       action: AUDIT_ACTION.CREATE_CATEGORY,
       targetType: AUDIT_TARGET_TYPE.CATEGORY,
       targetId: category.id,
-      details: { name: category.name, slug: category.slug, isActive: category.isActive },
+      details: {
+        name: category.name,
+        slug: category.slug,
+        icon: category.icon,
+        color: category.color,
+        orderIndex: category.orderIndex,
+        isActive: category.isActive,
+      },
       ipAddress: metadata?.ipAddress,
       userAgent: metadata?.userAgent,
     });
@@ -81,6 +92,10 @@ export class CategoryService {
     const updated = await this.repository.update(id, {
       name: data.name,
       slug,
+      description: data.description,
+      icon: data.icon,
+      color: data.color,
+      orderIndex: data.orderIndex,
       isActive: data.isActive,
     });
 
@@ -90,8 +105,22 @@ export class CategoryService {
       targetType: AUDIT_TARGET_TYPE.CATEGORY,
       targetId: id,
       details: {
-        before: { name: category.name, slug: category.slug, isActive: category.isActive },
-        after: { name: updated.name, slug: updated.slug, isActive: updated.isActive },
+        before: {
+          name: category.name,
+          slug: category.slug,
+          icon: category.icon,
+          color: category.color,
+          orderIndex: category.orderIndex,
+          isActive: category.isActive,
+        },
+        after: {
+          name: updated.name,
+          slug: updated.slug,
+          icon: updated.icon,
+          color: updated.color,
+          orderIndex: updated.orderIndex,
+          isActive: updated.isActive,
+        },
       },
       ipAddress: metadata?.ipAddress,
       userAgent: metadata?.userAgent,

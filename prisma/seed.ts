@@ -43,6 +43,14 @@ const SYSTEM_PERMISSIONS = [
   { name: 'WEBHOOK_READ', resource: 'WEBHOOK', action: 'READ', description: 'Xem danh sách Webhook Endpoints và lịch sử giao nhận' },
   { name: 'WEBHOOK_MANAGE', resource: 'WEBHOOK', action: 'MANAGE', description: 'Đăng ký, cấu hình và kích hoạt retry Webhook deliveries' },
 
+  // System Configuration & Feature Flags
+  { name: 'SYSTEM_CONFIG_READ', resource: 'SYSTEM_CONFIG', action: 'READ', description: 'Xem danh sách cấu hình hệ thống & feature flags' },
+  { name: 'SYSTEM_CONFIG_MANAGE', resource: 'SYSTEM_CONFIG', action: 'MANAGE', description: 'Tạo, cập nhật và quản lý cấu hình hệ thống' },
+
+  // Scheduled / Cron Jobs Management
+  { name: 'CRON_JOB_READ', resource: 'CRON_JOB', action: 'READ', description: 'Xem trạng thái và lịch sử chạy scheduled/cron jobs' },
+  { name: 'CRON_JOB_MANAGE', resource: 'CRON_JOB', action: 'MANAGE', description: 'Kích hoạt thủ công hoặc cấu hình cron jobs' },
+
   // Keyboard Themes Management
   { name: 'KEYBOARD_READ', resource: 'KEYBOARD', action: 'READ', description: 'Xem danh sách và chi tiết quản trị Keyboard Themes' },
   { name: 'KEYBOARD_CREATE', resource: 'KEYBOARD', action: 'CREATE', description: 'Tạo mới Keyboard Theme' },
@@ -87,8 +95,12 @@ const MANAGER_PERMISSIONS: string[] = [
   'AUDIT_LOG_READ',
   'API_KEY_READ',
   'WEBHOOK_READ',
+  'SYSTEM_CONFIG_READ',
+  'CRON_JOB_READ',
   'KEYBOARD_READ',
   'CATEGORY_READ',
+  'CATEGORY_CREATE',
+  'CATEGORY_UPDATE',
   'COLLECTION_READ',
   'COLLECTION_CREATE',
   'COLLECTION_UPDATE',
@@ -99,6 +111,17 @@ const MANAGER_PERMISSIONS: string[] = [
 
 async function main() {
   console.log('Starting Dynamic RBAC Seeding...');
+
+  // 0. Clean up legacy & obsolete permissions from previous schemas (e.g. BUDGET, TRANSACTION, WALLET, REPORT)
+  const validPermissionNames = SYSTEM_PERMISSIONS.map((p) => p.name);
+  const deletedPerms = await prisma.permission.deleteMany({
+    where: {
+      name: { notIn: validPermissionNames },
+    },
+  });
+  if (deletedPerms.count > 0) {
+    console.log(`Cleaned up ${deletedPerms.count} obsolete permissions from previous projects/schemas`);
+  }
 
   // 1. Seed Permissions
   const permissionMap: Record<string, string> = {};
@@ -438,19 +461,34 @@ async function main() {
 
   // 7. Seed Default Categories
   const DEFAULT_CATEGORIES = [
-    { name: 'Anime', slug: 'anime' },
-    { name: 'Pastel', slug: 'pastel' },
-    { name: 'Cyberpunk', slug: 'cyberpunk' },
-    { name: 'Minimalist', slug: 'minimalist' },
-    { name: 'Gaming', slug: 'gaming' },
+    { name: 'Anime', slug: 'anime', icon: 'Sparkles', color: '#FFB7C5', orderIndex: 1, description: 'Giao diện bàn phím phong cách anime, manga dễ thương' },
+    { name: 'Pastel', slug: 'pastel', icon: 'Palette', color: '#A2CFFE', orderIndex: 2, description: 'Tông màu pastel dịu nhẹ phong cách Cinnamoroll' },
+    { name: 'Cyberpunk', slug: 'cyberpunk', icon: 'Zap', color: '#B57EDC', orderIndex: 3, description: 'Đèn LED neon phong cách tương lai huyền ảo' },
+    { name: 'Minimalist', slug: 'minimalist', icon: 'Feather', color: '#CDE4FE', orderIndex: 4, description: 'Thiết kế tối giản, tinh tế, thoáng mắt' },
+    { name: 'Gaming', slug: 'gaming', icon: 'Gamepad2', color: '#FFD1DC', orderIndex: 5, description: 'Giao diện bàn phím cơ gaming chuyên nghiệp' },
   ];
 
   const categoryMap: Record<string, string> = {};
   for (const cat of DEFAULT_CATEGORIES) {
     const record = await prisma.category.upsert({
       where: { slug: cat.slug },
-      update: { name: cat.name, isActive: true },
-      create: { name: cat.name, slug: cat.slug, isActive: true },
+      update: {
+        name: cat.name,
+        icon: cat.icon,
+        color: cat.color,
+        orderIndex: cat.orderIndex,
+        description: cat.description,
+        isActive: true,
+      },
+      create: {
+        name: cat.name,
+        slug: cat.slug,
+        icon: cat.icon,
+        color: cat.color,
+        orderIndex: cat.orderIndex,
+        description: cat.description,
+        isActive: true,
+      },
     });
     categoryMap[cat.slug] = record.id;
   }

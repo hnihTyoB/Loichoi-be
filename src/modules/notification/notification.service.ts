@@ -148,24 +148,47 @@ export class NotificationService {
     const BATCH_SIZE = 500;
     let cursorId: string | undefined;
     let totalRecipients = 0;
+    const channels = dto.channels || ['WEB'];
+    const filter = {
+      roleIds: dto.roleIds,
+      roleNames: dto.roleNames,
+    };
 
     while (true) {
-      const usersChunk = await this.repository.getActiveUsersChunk(BATCH_SIZE, cursorId);
+      const usersChunk = await this.repository.getActiveUsersChunk(BATCH_SIZE, cursorId, filter);
       if (usersChunk.length === 0) {
         break;
       }
 
-      const records = usersChunk.map((u) => ({
-        userId: u.id,
-        type: dto.type || NOTIFICATION_TYPE.SYSTEM,
-        priority: dto.priority || NOTIFICATION_PRIORITY.NORMAL,
-        title: dto.title,
-        content: dto.content,
-        actionUrl: dto.actionUrl || null,
-        metadata: dto.metadata || null,
-      }));
+      if (channels.includes('WEB')) {
+        const records = usersChunk.map((u) => ({
+          userId: u.id,
+          type: dto.type || NOTIFICATION_TYPE.SYSTEM,
+          priority: dto.priority || NOTIFICATION_PRIORITY.NORMAL,
+          title: dto.title,
+          content: dto.content,
+          actionUrl: dto.actionUrl || null,
+          metadata: dto.metadata || null,
+        }));
 
-      await this.repository.createManyNotifications(records);
+        await this.repository.createManyNotifications(records);
+      }
+
+      if (channels.includes('EMAIL')) {
+        const emailRecords = usersChunk
+          .filter((u) => !!u.email)
+          .map((u) => ({
+            userId: u.id,
+            toEmail: u.email!,
+            subject: dto.title,
+            content: dto.content,
+          }));
+
+        if (emailRecords.length > 0) {
+          await this.repository.createManyEmailNotifications(emailRecords);
+        }
+      }
+
       totalRecipients += usersChunk.length;
       cursorId = usersChunk[usersChunk.length - 1].id;
 
@@ -174,7 +197,7 @@ export class NotificationService {
       }
     }
 
-    if (totalRecipients > 0) {
+    if (totalRecipients > 0 && channels.includes('WEB')) {
       // Real-time Push via SSE (Broadcast)
       sseManagerService.broadcast({
         type: 'notification:broadcast',

@@ -50,3 +50,28 @@ export interface FollowResultDto {
   followerCount: number;
   message: string;
 }
+
+export interface CreatorApplicationItemDto {
+  id: string;
+  fullName: string | null;
+  username: string | null;
+  email: string | null;
+  bio: string | null;
+  avatarUrl: string | null;
+  isCreator: boolean;
+  creatorStatus: string | null;
+  creatorAppliedAt: Date | string | null;
+  creatorRejectReason: string | null;
+  createdAt: Date | string;
+}
+
+export interface CreatorApplicationQueryDto {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
+}
+
+export interface RejectCreatorApplicationDto {
+  reason?: string;
+}

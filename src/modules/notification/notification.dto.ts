@@ -55,6 +55,9 @@ export interface BroadcastNotificationDto {
   type?: string;
   priority?: string;
   actionUrl?: string;
+  channels?: NotificationChannel[];
+  roleIds?: string[];
+  roleNames?: string[];
   metadata?: Record<string, unknown>;
 }
 

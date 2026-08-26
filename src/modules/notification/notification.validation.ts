@@ -51,6 +51,9 @@ export const broadcastNotificationSchema = z.object({
   content: z.string().min(1, 'Content is required'),
   type: z.enum(['SYSTEM', 'ALERT', 'INFO', 'SUCCESS', 'WARNING']).optional(),
   priority: z.enum(['LOW', 'NORMAL', 'HIGH']).optional(),
+  channels: z.array(z.enum(['WEB', 'EMAIL'])).optional().default(['WEB']),
+  roleIds: z.array(z.string().uuid('Invalid role ID')).optional(),
+  roleNames: z.array(z.string().trim()).optional(),
   actionUrl: z
     .string()
     .refine(

@@ -1,7 +1,10 @@
+import crypto from 'crypto';
 import { KeyboardRepository } from './keyboard.repository';
 import { CategoryRepository } from '../category/category.repository';
 import { discordBotService, DiscordBotService } from '../auth/discord-bot.service';
 import { systemConfigService, SystemConfigService } from '../system-config/system-config.service';
+import { R2Service } from '../../common/services/r2.service';
+import { r2Config } from '../../config/r2.config';
 import { FEATURE_FLAGS } from '../../common/constants/system-config.constant';
 import { envConfig } from '../../config/env.config';
 import {
@@ -9,6 +12,8 @@ import {
   KeyboardManagementQueryDto,
   CreateKeyboardDto,
   UpdateKeyboardDto,
+  GetThemeImageUploadUrlDto,
+  GetThemeImageUploadUrlResponseDto,
 } from './keyboard.dto';
 import { AppError } from '../../common/errors/app-error';
 import { ERROR_CODE } from '../../common/errors/error-code';
@@ -21,6 +26,24 @@ export class KeyboardService {
   private readonly categoryRepository = new CategoryRepository();
   private readonly discordBotService: DiscordBotService = discordBotService;
   private readonly systemConfigService: SystemConfigService = systemConfigService;
+  private readonly r2Service = new R2Service();
+
+  async getImageUploadUrl(userId: string, data: GetThemeImageUploadUrlDto): Promise<GetThemeImageUploadUrlResponseDto> {
+    const ext = data.contentType.split('/')[1] ?? 'webp';
+    const subFolder = data.imageType === 'PREVIEW' ? 'previews' : 'covers';
+    const randomSuffix = crypto.randomBytes(6).toString('hex');
+    const key = `themes/${userId}/${subFolder}/${Date.now()}_${randomSuffix}.${ext}`;
+
+    const uploadUrl = await this.r2Service.getPresignedUploadUrl(key, data.contentType);
+    const publicUrl = this.r2Service.getPublicUrl(key);
+
+    return {
+      uploadUrl,
+      publicUrl,
+      key,
+      expiresIn: r2Config.presignedUrlExpiresIn,
+    };
+  }
 
   async findPublicList(query: KeyboardQueryDto, currentUserId?: string) {
     return this.repository.findPublicList(query, currentUserId);

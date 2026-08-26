@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { CreatorService } from './creator.service';
 import { KeyboardService } from '../keyboard/keyboard.service';
-import { CreatorQueryDto } from './creator.dto';
+import { CreatorQueryDto, CreatorApplicationQueryDto, RejectCreatorApplicationDto } from './creator.dto';
 import { KeyboardQueryDto } from '../keyboard/keyboard.dto';
 
 export class CreatorController {
@@ -84,6 +84,77 @@ export class CreatorController {
       const limit = req.query.limit ? Number(req.query.limit) : 20;
 
       const result = await this.service.getUserFollowing(currentUserId, page, limit);
+      res.json({
+        success: true,
+        ...result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  findApplications = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const query = req.query as unknown as CreatorApplicationQueryDto;
+      const result = await this.service.findApplications(query);
+      res.json({
+        success: true,
+        ...result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  approveApplication = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.params.userId;
+      const adminId = req.user?.id;
+      const metadata = {
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      };
+
+      const result = await this.service.approveApplication(userId, adminId, metadata);
+      res.json({
+        success: true,
+        ...result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  rejectApplication = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.params.userId;
+      const { reason } = req.body as RejectCreatorApplicationDto;
+      const adminId = req.user?.id;
+      const metadata = {
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      };
+
+      const result = await this.service.rejectApplication(userId, reason, adminId, metadata);
+      res.json({
+        success: true,
+        ...result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  revokeCreator = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.params.userId;
+      const adminId = req.user?.id;
+      const metadata = {
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      };
+
+      const result = await this.service.revokeCreator(userId, adminId, metadata);
       res.json({
         success: true,
         ...result,

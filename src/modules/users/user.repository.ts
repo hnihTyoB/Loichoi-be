@@ -120,6 +120,72 @@ export class UserRepository {
       }),
     ]);
   }
+
+  async findSessionsByUserId(userId: string) {
+    return prisma.refreshToken.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async findSessionById(userId: string, sessionId: string) {
+    return prisma.refreshToken.findFirst({
+      where: { id: sessionId, userId },
+    });
+  }
+
+  async deleteSessionById(userId: string, sessionId: string) {
+    return prisma.refreshToken.deleteMany({
+      where: { id: sessionId, userId },
+    });
+  }
+
+  async deleteAllSessionsByUserId(userId: string) {
+    return prisma.refreshToken.deleteMany({
+      where: { userId },
+    });
+  }
+
+  async findDevicesByUserId(userId: string) {
+    return prisma.userDevice.findMany({
+      where: { userId },
+      orderBy: { lastLoginAt: 'desc' },
+    });
+  }
+
+  async findDeviceById(userId: string, deviceId: string) {
+    return prisma.userDevice.findFirst({
+      where: { id: deviceId, userId },
+    });
+  }
+
+  async deleteDeviceById(userId: string, deviceId: string) {
+    return prisma.userDevice.deleteMany({
+      where: { id: deviceId, userId },
+    });
+  }
+
+  async createAuditLog(data: {
+    actorId?: string;
+    action: string;
+    targetType: string;
+    targetId: string;
+    details?: Record<string, any>;
+    ipAddress?: string;
+    userAgent?: string;
+  }) {
+    return prisma.auditLog.create({
+      data: {
+        actorId: data.actorId,
+        action: data.action,
+        targetType: data.targetType,
+        targetId: data.targetId,
+        details: data.details,
+        ipAddress: data.ipAddress,
+        userAgent: data.userAgent,
+      },
+    });
+  }
 }
 
 export const userRepository = new UserRepository();

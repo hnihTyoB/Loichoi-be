@@ -16,6 +16,9 @@ model User {
   bio                  String?
   bannerUrl            String?              @map("banner_url")
   isCreator            Boolean              @default(false) @map("is_creator")
+  creatorStatus        String?              @default("NONE") @map("creator_status")
+  creatorAppliedAt     DateTime?            @map("creator_applied_at")
+  creatorRejectReason  String?              @map("creator_reject_reason")
   isFeaturedCreator    Boolean              @default(false) @map("is_featured_creator")
   socialLinks          Json?                @map("social_links")
   isActive             Boolean              @default(false) @map("is_active")
@@ -49,6 +52,7 @@ model User {
   @@index([deletedAt])
   @@index([username])
   @@index([isCreator])
+  @@index([creatorStatus])
   @@map("users")
 }
 
@@ -382,15 +386,20 @@ model KeyboardImage {
 }
 
 model Category {
-  id        String                  @id @default(uuid()) @db.Uuid
-  name      String
-  slug      String                  @unique
-  isActive  Boolean                 @default(true) @map("is_active")
-  createdAt DateTime                @default(now()) @map("created_at")
-  updatedAt DateTime                @updatedAt @map("updated_at")
-  themes    KeyboardThemeCategory[]
+  id          String                  @id @default(uuid()) @db.Uuid
+  name        String
+  slug        String                  @unique
+  description String?
+  icon        String?
+  color       String?
+  orderIndex  Int                     @default(0) @map("order_index")
+  isActive    Boolean                 @default(true) @map("is_active")
+  createdAt   DateTime                @default(now()) @map("created_at")
+  updatedAt   DateTime                @updatedAt @map("updated_at")
+  themes      KeyboardThemeCategory[]
 
   @@index([isActive])
+  @@index([orderIndex])
   @@map("categories")
 }
 

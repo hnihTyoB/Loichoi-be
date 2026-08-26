@@ -74,3 +74,14 @@ export interface CollectionQueryDto {
   creator?: string;
   sort?: CollectionSort;
 }
+
+export interface CollectionManagementQueryDto {
+  page?: number;
+  limit?: number;
+  search?: string;
+  isPublic?: boolean;
+  isFeatured?: boolean;
+  creator?: string;
+  userId?: string;
+  sort?: CollectionSort;
+}

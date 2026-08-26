@@ -13,6 +13,7 @@ import {
   keyboardSlugParamSchema,
   keyboardPublicQuerySchema,
   keyboardManagementQuerySchema,
+  getThemeImageUploadUrlSchema,
 } from './keyboard.validation';
 
 const router = Router();
@@ -23,6 +24,13 @@ const downloadRateLimiter = createRateLimiter({
   message: 'Bạn đã thực hiện quá nhiều yêu cầu tải file. Vui lòng thử lại sau 1 phút.',
   keyGenerator: (req) => `download_${req.user?.id || req.ip}`,
 });
+
+router.post(
+  '/upload-url',
+  authMiddleware,
+  validate(getThemeImageUploadUrlSchema),
+  keyboardController.getImageUploadUrl,
+);
 
 router.get(
   '/manage',

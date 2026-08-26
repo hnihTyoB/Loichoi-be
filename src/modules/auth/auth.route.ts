@@ -18,6 +18,7 @@ import {
   resetPasswordSchema,
   resendVerificationSchema,
   sessionIdParamSchema,
+  deviceIdParamSchema,
   getAvatarUploadUrlSchema,
   confirmAvatarUploadSchema,
 } from './auth.validation';
@@ -40,6 +41,9 @@ router.post('/resend-verification', authRateLimitMiddleware, validate(resendVeri
 router.get('/sessions', authMiddleware, controller.getSessions);
 router.delete('/sessions/:id', authMiddleware, validate(sessionIdParamSchema, 'params'), controller.revokeSession);
 router.delete('/sessions', authMiddleware, validate(revokeOtherSessionsSchema), controller.revokeOtherSessions);
+
+router.get('/devices', authMiddleware, controller.getDevices);
+router.delete('/devices/:id', authMiddleware, validate(deviceIdParamSchema, 'params'), controller.deleteDevice);
 
 
 router.post('/avatar/upload-url', authMiddleware, validate(getAvatarUploadUrlSchema), controller.getAvatarUploadUrl);
