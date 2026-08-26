@@ -18,10 +18,14 @@ export interface MeDto {
   id: string;
   email: string | null;
   fullName: string | null;
+  avatarUrl?: string | null;
+  phoneNumber?: string | null;
+  discordId?: string | null;
   role: string;
   roleId: string;
   permissions: string[];
   isActive: boolean;
+  isEmailVerified: boolean;
   createdAt: Date;
 }
 
@@ -32,6 +36,9 @@ export interface LoginResponseDto {
     id: string;
     email: string | null;
     fullName: string | null;
+    avatarUrl?: string | null;
+    phoneNumber?: string | null;
+    discordId?: string | null;
     role: string;
     roleId: string;
     permissions: string[];

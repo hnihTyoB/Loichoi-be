@@ -113,6 +113,9 @@ export class AuthService {
         id: user.id,
         email: user.email,
         fullName: user.fullName,
+        avatarUrl: user.avatarUrl,
+        phoneNumber: user.phoneNumber,
+        discordId: (user as any).socialAccounts?.find((s: any) => s.provider === 'DISCORD')?.providerUserId || null,
         role: user.role.name,
         roleId: user.roleId,
         permissions,
@@ -138,26 +141,47 @@ export class AuthService {
       throw new AppError('Refresh token expired', 401, ERROR_CODE.TOKEN_EXPIRED);
     }
 
-    const user = await this.repository.findById(payload.id);
+    const user = await this.repository.findById(payload.userId);
     if (!user || !user.isActive) {
       throw new AppError('User not found or inactive', 401, ERROR_CODE.USER_INACTIVE);
     }
 
-    const newPayload = { id: user.id, email: user.email, role: user.role.name, roleId: user.roleId };
+    // Single active device token rotation: revoke used refresh token immediately
+    await this.repository.deleteRefreshToken(token);
 
-    const newAccessToken = jwt.sign(newPayload, jwtConfig.accessSecret, {
-      expiresIn: jwtConfig.accessExpiresIn as jwt.SignOptions['expiresIn'],
-    });
+    // Generate new token pair
+    const newAccessToken = jwt.sign(
+      {
+        userId: user.id,
+        email: user.email,
+        role: user.role.name,
+        roleId: user.roleId,
+      },
+      jwtConfig.accessSecret,
+      { expiresIn: jwtConfig.accessExpiresIn as jwt.SignOptions['expiresIn'] }
+    );
 
     const newRefreshToken = jwt.sign(
-      { ...newPayload, jti: crypto.randomUUID() },
+      { userId: user.id },
       jwtConfig.refreshSecret,
       { expiresIn: jwtConfig.refreshExpiresIn as jwt.SignOptions['expiresIn'] }
     );
 
-    const decoded = jwt.decode(newRefreshToken) as { exp: number };
-    const expiresAt = new Date(decoded.exp * 1000);
-    await this.repository.rotateRefreshToken(user.id, token, newRefreshToken, expiresAt, metadata?.userAgent, metadata?.ipAddress);
+    const newRefreshTokenExpiry = new Date();
+    newRefreshTokenExpiry.setDate(newRefreshTokenExpiry.getDate() + 7);
+
+    // Track device metadata for session management
+    const deviceHash = metadata?.userAgent
+      ? crypto.createHash('sha256').update(metadata.userAgent).digest('hex')
+      : undefined;
+
+    await this.repository.saveRefreshToken(
+      user.id,
+      newRefreshToken,
+      newRefreshTokenExpiry,
+      metadata?.userAgent,
+      metadata?.ipAddress
+    );
 
     return {
       accessToken: newAccessToken,
@@ -165,7 +189,7 @@ export class AuthService {
     };
   }
 
-  async logout(token: string) {
+  async logout(token: string): Promise<void> {
     const result = await this.repository.deleteRefreshToken(token);
 
     if (result.count === 0) {
@@ -181,15 +205,20 @@ export class AuthService {
     }
 
     const permissions = Array.from(await permissionCacheService.getRolePermissions(user.roleId));
+    const discordAccount = (user as any).socialAccounts?.find((s: any) => s.provider === 'DISCORD');
 
     return {
       id: user.id,
       email: user.email,
       fullName: user.fullName,
+      avatarUrl: user.avatarUrl,
+      phoneNumber: user.phoneNumber,
+      discordId: discordAccount?.providerUserId || null,
       role: user.role.name,
       roleId: user.roleId,
       permissions,
       isActive: user.isActive,
+      isEmailVerified: user.isActive,
       createdAt: user.createdAt,
     };
   }
@@ -540,6 +569,10 @@ export class AuthService {
       }
     }
 
+    if (!user) {
+      throw new AppError('Unable to authenticate Discord user', 500, ERROR_CODE.INTERNAL_SERVER_ERROR);
+    }
+
     const payload = { id: user.id, email: user.email, role: user.role.name, roleId: user.roleId };
 
     const accessToken = jwt.sign(payload, jwtConfig.accessSecret, {
@@ -565,6 +598,9 @@ export class AuthService {
         id: user.id,
         email: user.email,
         fullName: user.fullName,
+        avatarUrl: user.avatarUrl,
+        phoneNumber: user.phoneNumber,
+        discordId: profile.id,
         role: user.role.name,
         roleId: user.roleId,
         permissions: Array.from(permissions),

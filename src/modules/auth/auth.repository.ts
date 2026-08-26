@@ -11,14 +11,14 @@ export class AuthRepository {
   findByEmail(email: string) {
     return prisma.user.findFirst({
       where: { email, deletedAt: null },
-      include: { role: true },
+      include: { role: true, socialAccounts: true },
     });
   }
 
   findById(id: string) {
     return prisma.user.findFirst({
       where: { id, deletedAt: null },
-      include: { role: true },
+      include: { role: true, socialAccounts: true },
     });
   }
 
@@ -56,11 +56,11 @@ export class AuthRepository {
       },
       include: {
         user: {
-          include: { role: true },
+          include: { role: true, socialAccounts: true },
         },
       },
     });
-    return socialAccount?.user || null;
+    return socialAccount ? socialAccount.user : null;
   }
 
   async createSocialAccount(data: { userId: string; provider: string; providerUserId: string }) {
@@ -95,7 +95,7 @@ export class AuthRepository {
           },
         },
       },
-      include: { role: true },
+      include: { role: true, socialAccounts: true },
     });
   }
 
