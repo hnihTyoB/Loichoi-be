@@ -10,6 +10,9 @@ import { registerSystemConfigOpenApi } from '../modules/system-config/system-con
 import { registerCronOpenApi } from '../modules/cron/cron.openapi';
 import { registerCategoryOpenApi } from '../modules/category/category.openapi';
 import { registerKeyboardOpenApi } from '../modules/keyboard/keyboard.openapi';
+import { registerCreatorOpenApi } from '../modules/creator/creator.openapi';
+import { registerCollectionOpenApi } from '../modules/collection/collection.openapi';
+import { registerStudioOpenApi } from '../modules/studio/studio.openapi';
 import { registerHealthOpenApi } from '../routes/health.openapi';
 
 // Tự động khởi tạo và đăng ký 100% routes & schemas từ Zod validation schemas
@@ -23,6 +26,9 @@ registerSystemConfigOpenApi();
 registerCronOpenApi();
 registerCategoryOpenApi();
 registerKeyboardOpenApi();
+registerCreatorOpenApi();
+registerCollectionOpenApi();
+registerStudioOpenApi();
 registerHealthOpenApi();
 
 
@@ -30,9 +36,9 @@ export const swaggerOptions: SwaggerUiOptions = {
   customCss: `
     .swagger-ui .topbar { background-color: #1a1a2e; }
     .swagger-ui .topbar-wrapper .link img { display: none; }
-    .swagger-ui .topbar-wrapper .link::after { content: 'Template API'; color: white; font-size: 1.2rem; font-weight: bold; }
+    .swagger-ui .topbar-wrapper .link::after { content: 'KeyboardHub API'; color: white; font-size: 1.2rem; font-weight: bold; }
   `,
-  customSiteTitle: 'API Documentation',
+  customSiteTitle: 'KeyboardHub API Documentation',
 };
 
 export const swaggerSpec: Record<string, any> = buildOpenApiSpec();

@@ -17,14 +17,37 @@ export type KeyboardStatus = keyof typeof KEYBOARD_STATUS;
 export const KEYBOARD_SORT = {
   LATEST: 'LATEST',
   POPULAR: 'POPULAR',
+  TOP_LIKED: 'TOP_LIKED',
+  TOP_DOWNLOADED: 'TOP_DOWNLOADED',
   NAME_ASC: 'NAME_ASC',
   NAME_DESC: 'NAME_DESC',
 } as const;
 
 export type KeyboardSort = keyof typeof KEYBOARD_SORT;
 
+export const CREATOR_SORT = {
+  TOP_FOLLOWERS: 'TOP_FOLLOWERS',
+  TOP_DOWNLOADS: 'TOP_DOWNLOADS',
+  TOP_THEMES: 'TOP_THEMES',
+  NAME_ASC: 'NAME_ASC',
+  NAME_DESC: 'NAME_DESC',
+  LATEST: 'LATEST',
+} as const;
+
+export type CreatorSort = keyof typeof CREATOR_SORT;
+
+export const COLLECTION_SORT = {
+  LATEST: 'LATEST',
+  FEATURED: 'FEATURED',
+  NAME_ASC: 'NAME_ASC',
+  NAME_DESC: 'NAME_DESC',
+} as const;
+
+export type CollectionSort = keyof typeof COLLECTION_SORT;
+
 export const THEME_ACCESS_LEVEL = {
   FREE: 'FREE',
+  PREMIUM: 'PREMIUM',
   DISCORD_MEMBER: 'DISCORD_MEMBER',
   DISCORD_ROLE: 'DISCORD_ROLE',
 } as const;
@@ -46,3 +69,4 @@ export function isGoogleDriveUrl(urlString: string): boolean {
     return false;
   }
 }
+

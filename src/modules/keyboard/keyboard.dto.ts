@@ -1,5 +1,12 @@
 import { KeyboardPlatform, KeyboardStatus, KeyboardSort, ThemeAccessLevel } from '../../common/constants/keyboard.constant';
 
+export interface CreatorSummaryDto {
+  id: string;
+  fullName: string | null;
+  username: string | null;
+  avatarUrl: string | null;
+}
+
 export interface KeyboardListItemDto {
   id: string;
   name: string;
@@ -9,7 +16,11 @@ export interface KeyboardListItemDto {
   accessLevel: ThemeAccessLevel;
   requiredDiscordRoleIds: string[];
   downloadCount: number;
+  likeCount: number;
+  isFeatured: boolean;
+  isLiked?: boolean;
   publishedAt: Date | string | null;
+  author: CreatorSummaryDto | null;
   categories: Array<{
     id: string;
     name: string;
@@ -27,7 +38,11 @@ export interface KeyboardPublicDetailDto {
   accessLevel: ThemeAccessLevel;
   requiredDiscordRoleIds: string[];
   downloadCount: number;
+  likeCount: number;
+  isFeatured: boolean;
+  isLiked?: boolean;
   publishedAt: Date | string | null;
+  author: CreatorSummaryDto | null;
   categories: Array<{
     id: string;
     name: string;
@@ -52,7 +67,10 @@ export interface KeyboardManagementListItemDto {
   accessLevel: ThemeAccessLevel;
   requiredDiscordRoleIds: string[];
   downloadCount: number;
+  likeCount: number;
+  isFeatured: boolean;
   publishedAt: Date | string | null;
+  author: CreatorSummaryDto | null;
   categoryNames: string[];
   createdAt: Date | string;
   updatedAt: Date | string;
@@ -70,7 +88,10 @@ export interface KeyboardManagementDetailDto {
   accessLevel: ThemeAccessLevel;
   requiredDiscordRoleIds: string[];
   downloadCount: number;
+  likeCount: number;
+  isFeatured: boolean;
   publishedAt: Date | string | null;
+  author: CreatorSummaryDto | null;
   categories: Array<{
     id: string;
     name: string;
@@ -107,6 +128,7 @@ export interface CreateKeyboardDto {
   accessLevel?: ThemeAccessLevel;
   requiredDiscordRoleIds?: string[];
   categoryIds: string[];
+  isFeatured?: boolean;
   previewImages?: CreateKeyboardPreviewImagePayload[];
 }
 
@@ -121,6 +143,7 @@ export interface UpdateKeyboardDto {
   accessLevel?: ThemeAccessLevel;
   requiredDiscordRoleIds?: string[];
   categoryIds?: string[];
+  isFeatured?: boolean;
   previewImages?: CreateKeyboardPreviewImagePayload[];
 }
 
@@ -130,6 +153,9 @@ export interface KeyboardQueryDto {
   search?: string;
   category?: string;
   platform?: KeyboardPlatform;
+  accessLevel?: ThemeAccessLevel;
+  isFeatured?: boolean;
+  creator?: string;
   sort?: KeyboardSort;
 }
 
@@ -140,5 +166,6 @@ export interface KeyboardManagementQueryDto {
   status?: KeyboardStatus;
   categoryId?: string;
   platform?: KeyboardPlatform;
+  isFeatured?: boolean;
   sort?: string;
 }

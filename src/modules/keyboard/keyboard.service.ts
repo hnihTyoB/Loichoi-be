@@ -22,12 +22,12 @@ export class KeyboardService {
   private readonly discordBotService: DiscordBotService = discordBotService;
   private readonly systemConfigService: SystemConfigService = systemConfigService;
 
-  async findPublicList(query: KeyboardQueryDto) {
-    return this.repository.findPublicList(query);
+  async findPublicList(query: KeyboardQueryDto, currentUserId?: string) {
+    return this.repository.findPublicList(query, currentUserId);
   }
 
-  async findPublicBySlug(slug: string) {
-    const theme = await this.repository.findPublicBySlug(slug);
+  async findPublicBySlug(slug: string, currentUserId?: string) {
+    const theme = await this.repository.findPublicBySlug(slug, currentUserId);
     if (!theme) {
       throw new AppError(
         'Giao diện bàn phím không tồn tại hoặc chưa được phát hành',
@@ -285,6 +285,50 @@ export class KeyboardService {
       message: 'Theme deleted successfully',
       archived: false,
     };
+  }
+
+  async toggleLike(
+    slug: string,
+    userId: string,
+    metadata?: { ipAddress?: string; userAgent?: string },
+  ) {
+    const isLikesEnabled = await this.systemConfigService.isFeatureEnabled(
+      FEATURE_FLAGS.KEYBOARD_LIKES_ENABLED,
+      true,
+    );
+
+    if (!isLikesEnabled) {
+      throw new AppError('Tính năng yêu thích theme tạm thời bị vô hiệu hóa', 403, ERROR_CODE.FEATURE_DISABLED);
+    }
+
+    const theme = await this.repository.findBySlug(slug);
+    if (!theme || theme.status !== 'PUBLISHED') {
+      throw new AppError('Giao diện bàn phím không tồn tại hoặc chưa được phát hành', 404, ERROR_CODE.THEME_NOT_FOUND);
+    }
+
+    const result = await this.repository.toggleLike(userId, theme.id);
+
+    await this.repository.createAuditLog({
+      actorId: userId,
+      action: result.liked ? AUDIT_ACTION.LIKE_KEYBOARD : AUDIT_ACTION.UNLIKE_KEYBOARD,
+      targetType: AUDIT_TARGET_TYPE.KEYBOARD_THEME,
+      targetId: theme.id,
+      details: { liked: result.liked, likeCount: result.likeCount },
+      ipAddress: metadata?.ipAddress,
+      userAgent: metadata?.userAgent,
+    });
+
+    return {
+      themeId: theme.id,
+      slug: theme.slug,
+      liked: result.liked,
+      likeCount: result.likeCount,
+      message: result.liked ? 'Đã thêm vào danh sách yêu thích' : 'Đã bỏ yêu thích theme',
+    };
+  }
+
+  async findUserLikedThemes(userId: string, page = 1, limit = 20) {
+    return this.repository.findUserLikedThemes(userId, page, limit);
   }
 
   async processDownload(

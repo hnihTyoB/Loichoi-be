@@ -17,6 +17,9 @@ export const FEATURE_FLAGS = {
   DISCORD_GATED_DOWNLOAD: 'feature.discord_gated_download.enabled',
   THEME_ANNOUNCEMENT_WEBHOOK: 'feature.theme_announcement_webhook.enabled',
   TIER_DOWNLOAD_QUOTA: 'feature.tier_download_quota.enabled',
+  CREATOR_STUDIO_ENABLED: 'feature.creator_studio.enabled',
+  COLLECTIONS_ENABLED: 'feature.collections.enabled',
+  KEYBOARD_LIKES_ENABLED: 'feature.keyboard_likes.enabled',
 } as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAGS)[keyof typeof FEATURE_FLAGS];
@@ -24,14 +27,14 @@ export type FeatureFlagKey = (typeof FEATURE_FLAGS)[keyof typeof FEATURE_FLAGS];
 export const DEFAULT_SYSTEM_CONFIGS = [
   {
     key: 'app.name',
-    value: 'Keyboard Theme Library',
-    description: 'Tên ứng dụng hiển thị công khai',
+    value: 'KeyboardHub',
+    description: 'Tên nền tảng hiển thị công khai',
     category: SYSTEM_CONFIG_CATEGORY.GENERAL,
     isPublic: true,
   },
   {
     key: 'app.support_email',
-    value: 'support@example.com',
+    value: 'support@keyboardhub.local',
     description: 'Email liên hệ hỗ trợ khách hàng',
     category: SYSTEM_CONFIG_CATEGORY.GENERAL,
     isPublic: true,
@@ -52,8 +55,8 @@ export const DEFAULT_SYSTEM_CONFIGS = [
   },
   {
     key: 'discord.invite_url',
-    value: 'https://discord.gg',
-    description: 'Đường dẫn liên kết mời gia nhập Discord Server cộng đồng',
+    value: 'https://discord.gg/keyboardhub',
+    description: 'Đường dẫn liên kết mời gia nhập Discord Server cộng đồng KeyboardHub',
     category: SYSTEM_CONFIG_CATEGORY.INTEGRATION,
     isPublic: true,
   },
@@ -96,6 +99,13 @@ export const DEFAULT_SYSTEM_CONFIGS = [
     key: 'keyboard.quota_reset_cycle',
     value: 'MONTHLY',
     description: 'Chu kỳ tự động làm mới hạn mức tải về (MONTHLY: hàng tháng, LIFETIME: trọn đời)',
+    category: SYSTEM_CONFIG_CATEGORY.GENERAL,
+    isPublic: true,
+  },
+  {
+    key: 'collections.max_themes_per_collection',
+    value: 100,
+    description: 'Số lượng theme tối đa được gán vào một bộ sưu tập',
     category: SYSTEM_CONFIG_CATEGORY.GENERAL,
     isPublic: true,
   },
@@ -156,6 +166,28 @@ export const DEFAULT_SYSTEM_CONFIGS = [
     category: SYSTEM_CONFIG_CATEGORY.FEATURE_FLAG,
     isPublic: false,
   },
+  {
+    key: FEATURE_FLAGS.CREATOR_STUDIO_ENABLED,
+    value: true,
+    description: 'Bật tính năng Creator Studio cho phép người sáng tạo quản lý theme và số liệu thống kê',
+    category: SYSTEM_CONFIG_CATEGORY.FEATURE_FLAG,
+    isPublic: true,
+  },
+  {
+    key: FEATURE_FLAGS.COLLECTIONS_ENABLED,
+    value: true,
+    description: 'Bật tính năng Khám phá và Tạo bộ sưu tập (Collections)',
+    category: SYSTEM_CONFIG_CATEGORY.FEATURE_FLAG,
+    isPublic: true,
+  },
+  {
+    key: FEATURE_FLAGS.KEYBOARD_LIKES_ENABLED,
+    value: true,
+    description: 'Bật tính năng Thả tim và Lưu theme yêu thích',
+    category: SYSTEM_CONFIG_CATEGORY.FEATURE_FLAG,
+    isPublic: true,
+  },
 ] as const;
 
 export const SYSTEM_CONFIG_PUBSUB_CHANNEL = 'system_config:events';
+

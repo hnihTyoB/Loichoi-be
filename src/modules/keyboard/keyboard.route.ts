@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { keyboardController } from './keyboard.controller';
-import { authMiddleware } from '../../middlewares/auth.middleware';
+import { authMiddleware, optionalAuthMiddleware } from '../../middlewares/auth.middleware';
 import { requirePermission } from '../../middlewares/permission.middleware';
 import { validate } from '../../middlewares/validate.middleware';
 import { createRateLimiter } from '../../middlewares/rate-limit.middleware';
@@ -48,6 +48,12 @@ router.get(
   keyboardController.findManagementById,
 );
 
+router.get(
+  '/me/liked',
+  authMiddleware,
+  keyboardController.findUserLikedThemes,
+);
+
 router.post(
   '/',
   authMiddleware,
@@ -75,8 +81,16 @@ router.delete(
 
 router.get(
   '/',
+  optionalAuthMiddleware,
   validate(keyboardPublicQuerySchema, 'query'),
   keyboardController.findPublicList,
+);
+
+router.post(
+  '/:slug/like',
+  authMiddleware,
+  validate(keyboardSlugParamSchema, 'params'),
+  keyboardController.toggleLike,
 );
 
 router.post(
@@ -89,6 +103,7 @@ router.post(
 
 router.get(
   '/:slug',
+  optionalAuthMiddleware,
   validate(keyboardSlugParamSchema, 'params'),
   keyboardController.findPublicBySlug,
 );

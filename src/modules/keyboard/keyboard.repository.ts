@@ -7,6 +7,13 @@ import {
   UpdateKeyboardDto,
 } from './keyboard.dto';
 
+const authorSelect = {
+  id: true,
+  fullName: true,
+  username: true,
+  avatarUrl: true,
+} satisfies Prisma.UserSelect;
+
 const publicThemeSelect = {
   id: true,
   name: true,
@@ -16,7 +23,12 @@ const publicThemeSelect = {
   accessLevel: true,
   requiredDiscordRoleIds: true,
   downloadCount: true,
+  likeCount: true,
+  isFeatured: true,
   publishedAt: true,
+  author: {
+    select: authorSelect,
+  },
   categories: {
     where: {
       category: { isActive: true },
@@ -34,8 +46,18 @@ const publicThemeSelect = {
 } satisfies Prisma.KeyboardThemeSelect;
 
 export class KeyboardRepository {
-  async findPublicList(query: KeyboardQueryDto) {
-    const { page = 1, limit = 20, search, category, platform, sort = 'LATEST' } = query;
+  async findPublicList(query: KeyboardQueryDto, currentUserId?: string) {
+    const {
+      page = 1,
+      limit = 20,
+      search,
+      category,
+      platform,
+      accessLevel,
+      isFeatured,
+      creator,
+      sort = 'LATEST',
+    } = query;
 
     const where: Prisma.KeyboardThemeWhereInput = {
       status: 'PUBLISHED',
@@ -59,6 +81,15 @@ export class KeyboardRepository {
           : platform === 'BOTH'
             ? { platform: 'BOTH' }
             : {}),
+      ...(accessLevel ? { accessLevel } : {}),
+      ...(isFeatured !== undefined ? { isFeatured } : {}),
+      ...(creator
+        ? {
+            author: {
+              username: creator,
+            },
+          }
+        : {}),
     };
 
     let orderBy: Prisma.KeyboardThemeOrderByWithRelationInput[] = [
@@ -66,8 +97,10 @@ export class KeyboardRepository {
       { id: 'desc' },
     ];
 
-    if (sort === 'POPULAR') {
+    if (sort === 'POPULAR' || sort === 'TOP_DOWNLOADED') {
       orderBy = [{ downloadCount: 'desc' }, { publishedAt: 'desc' }, { id: 'desc' }];
+    } else if (sort === 'TOP_LIKED') {
+      orderBy = [{ likeCount: 'desc' }, { publishedAt: 'desc' }, { id: 'desc' }];
     } else if (sort === 'NAME_ASC') {
       orderBy = [{ name: 'asc' }, { id: 'asc' }];
     } else if (sort === 'NAME_DESC') {
@@ -87,6 +120,19 @@ export class KeyboardRepository {
       prisma.keyboardTheme.count({ where }),
     ]);
 
+    let likedThemeIds = new Set<string>();
+    if (currentUserId && items.length > 0) {
+      const themeIds = items.map((i) => i.id);
+      const likes = await prisma.keyboardLike.findMany({
+        where: {
+          userId: currentUserId,
+          keyboardThemeId: { in: themeIds },
+        },
+        select: { keyboardThemeId: true },
+      });
+      likedThemeIds = new Set(likes.map((l) => l.keyboardThemeId));
+    }
+
     const data = items.map((item) => ({
       id: item.id,
       name: item.name,
@@ -96,7 +142,11 @@ export class KeyboardRepository {
       accessLevel: item.accessLevel as any,
       requiredDiscordRoleIds: item.requiredDiscordRoleIds,
       downloadCount: item.downloadCount,
+      likeCount: item.likeCount,
+      isFeatured: item.isFeatured,
+      isLiked: currentUserId ? likedThemeIds.has(item.id) : undefined,
       publishedAt: item.publishedAt,
+      author: item.author,
       categories: item.categories.map((c) => c.category),
     }));
 
@@ -111,7 +161,7 @@ export class KeyboardRepository {
     };
   }
 
-  async findPublicBySlug(slug: string) {
+  async findPublicBySlug(slug: string, currentUserId?: string) {
     const item = await prisma.keyboardTheme.findFirst({
       where: {
         slug,
@@ -127,7 +177,12 @@ export class KeyboardRepository {
         accessLevel: true,
         requiredDiscordRoleIds: true,
         downloadCount: true,
+        likeCount: true,
+        isFeatured: true,
         publishedAt: true,
+        author: {
+          select: authorSelect,
+        },
         categories: {
           where: {
             category: { isActive: true },
@@ -158,6 +213,19 @@ export class KeyboardRepository {
 
     if (!item) return null;
 
+    let isLiked: boolean | undefined = undefined;
+    if (currentUserId) {
+      const likeRecord = await prisma.keyboardLike.findUnique({
+        where: {
+          userId_keyboardThemeId: {
+            userId: currentUserId,
+            keyboardThemeId: item.id,
+          },
+        },
+      });
+      isLiked = !!likeRecord;
+    }
+
     return {
       id: item.id,
       name: item.name,
@@ -168,25 +236,40 @@ export class KeyboardRepository {
       accessLevel: item.accessLevel as any,
       requiredDiscordRoleIds: item.requiredDiscordRoleIds,
       downloadCount: item.downloadCount,
+      likeCount: item.likeCount,
+      isFeatured: item.isFeatured,
+      isLiked,
       publishedAt: item.publishedAt,
+      author: item.author,
       categories: item.categories.map((c) => c.category),
       previewImages: item.previewImages,
     };
   }
 
   async findManagementList(query: KeyboardManagementQueryDto) {
-    const { page = 1, limit = 20, search, status, categoryId, platform, sort = 'createdAt_desc' } = query;
+    const {
+      page = 1,
+      limit = 20,
+      search,
+      status,
+      categoryId,
+      platform,
+      isFeatured,
+      sort = 'createdAt_desc',
+    } = query;
 
     const where: Prisma.KeyboardThemeWhereInput = {
       ...(search ? { name: { contains: search, mode: 'insensitive' } } : {}),
       ...(status ? { status } : {}),
       ...(categoryId ? { categories: { some: { categoryId } } } : {}),
       ...(platform ? { platform } : {}),
+      ...(isFeatured !== undefined ? { isFeatured } : {}),
     };
 
     let orderBy: Prisma.KeyboardThemeOrderByWithRelationInput = { createdAt: 'desc' };
     if (sort === 'createdAt_asc') orderBy = { createdAt: 'asc' };
     else if (sort === 'downloadCount_desc') orderBy = { downloadCount: 'desc' };
+    else if (sort === 'likeCount_desc') orderBy = { likeCount: 'desc' };
     else if (sort === 'name_asc') orderBy = { name: 'asc' };
 
     const skip = (page - 1) * limit;
@@ -198,6 +281,7 @@ export class KeyboardRepository {
         take: limit,
         orderBy,
         include: {
+          author: { select: authorSelect },
           categories: {
             include: {
               category: true,
@@ -219,7 +303,10 @@ export class KeyboardRepository {
       accessLevel: item.accessLevel as any,
       requiredDiscordRoleIds: item.requiredDiscordRoleIds,
       downloadCount: item.downloadCount,
+      likeCount: item.likeCount,
+      isFeatured: item.isFeatured,
       publishedAt: item.publishedAt,
+      author: item.author,
       categoryNames: item.categories.map((c) => c.category.name),
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
@@ -240,6 +327,7 @@ export class KeyboardRepository {
     const item = await prisma.keyboardTheme.findUnique({
       where: { id },
       include: {
+        author: { select: authorSelect },
         categories: {
           include: {
             category: true,
@@ -265,7 +353,10 @@ export class KeyboardRepository {
       accessLevel: item.accessLevel as any,
       requiredDiscordRoleIds: item.requiredDiscordRoleIds,
       downloadCount: item.downloadCount,
+      likeCount: item.likeCount,
+      isFeatured: item.isFeatured,
       publishedAt: item.publishedAt,
+      author: item.author,
       categories: item.categories.map((c) => ({
         id: c.category.id,
         name: c.category.name,
@@ -283,12 +374,14 @@ export class KeyboardRepository {
   findById(id: string) {
     return prisma.keyboardTheme.findUnique({
       where: { id },
+      include: { author: { select: authorSelect } },
     });
   }
 
   findBySlug(slug: string) {
     return prisma.keyboardTheme.findUnique({
       where: { slug },
+      include: { author: { select: authorSelect } },
     });
   }
 
@@ -307,6 +400,7 @@ export class KeyboardRepository {
           status: data.status || 'DRAFT',
           accessLevel: data.accessLevel || 'FREE',
           requiredDiscordRoleIds: data.requiredDiscordRoleIds || [],
+          isFeatured: data.isFeatured || false,
           publishedAt: data.publishedAt,
           createdBy: data.createdBy,
           categories: {
@@ -314,15 +408,16 @@ export class KeyboardRepository {
               categoryId,
             })),
           },
-          previewImages: data.previewImages && data.previewImages.length > 0
-            ? {
-                create: data.previewImages.map((img) => ({
-                  url: img.url,
-                  altText: img.altText,
-                  position: img.position,
-                })),
-              }
-            : undefined,
+          previewImages:
+            data.previewImages && data.previewImages.length > 0
+              ? {
+                  create: data.previewImages.map((img) => ({
+                    url: img.url,
+                    altText: img.altText,
+                    position: img.position,
+                  })),
+                }
+              : undefined,
         },
       });
 
@@ -380,6 +475,7 @@ export class KeyboardRepository {
           status: data.status,
           accessLevel: data.accessLevel,
           requiredDiscordRoleIds: data.requiredDiscordRoleIds,
+          isFeatured: data.isFeatured,
           publishedAt: data.publishedAt,
           updatedBy: data.updatedBy,
         },
@@ -412,6 +508,113 @@ export class KeyboardRepository {
     return prisma.keyboardThemeCategory.count({
       where: { keyboardThemeId: themeId },
     });
+  }
+
+  async toggleLike(userId: string, keyboardThemeId: string): Promise<{ liked: boolean; likeCount: number }> {
+    return prisma.$transaction(async (tx) => {
+      const existing = await tx.keyboardLike.findUnique({
+        where: {
+          userId_keyboardThemeId: {
+            userId,
+            keyboardThemeId,
+          },
+        },
+      });
+
+      if (existing) {
+        await tx.keyboardLike.delete({
+          where: { id: existing.id },
+        });
+        const updated = await tx.keyboardTheme.update({
+          where: { id: keyboardThemeId },
+          data: {
+            likeCount: { decrement: 1 },
+          },
+          select: { likeCount: true },
+        });
+        return { liked: false, likeCount: Math.max(0, updated.likeCount) };
+      } else {
+        await tx.keyboardLike.create({
+          data: {
+            userId,
+            keyboardThemeId,
+          },
+        });
+        const updated = await tx.keyboardTheme.update({
+          where: { id: keyboardThemeId },
+          data: {
+            likeCount: { increment: 1 },
+          },
+          select: { likeCount: true },
+        });
+        return { liked: true, likeCount: updated.likeCount };
+      }
+    });
+  }
+
+  async isThemeLikedByUser(userId: string, keyboardThemeId: string): Promise<boolean> {
+    const like = await prisma.keyboardLike.findUnique({
+      where: {
+        userId_keyboardThemeId: {
+          userId,
+          keyboardThemeId,
+        },
+      },
+      select: { id: true },
+    });
+    return !!like;
+  }
+
+  async findUserLikedThemes(userId: string, page = 1, limit = 20) {
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.KeyboardLikeWhereInput = {
+      userId,
+      theme: { status: 'PUBLISHED' },
+    };
+
+    const [likes, total] = await prisma.$transaction([
+      prisma.keyboardLike.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          theme: {
+            select: publicThemeSelect,
+          },
+        },
+      }),
+      prisma.keyboardLike.count({ where }),
+    ]);
+
+    const data = likes.map((l) => ({
+      id: l.theme.id,
+      name: l.theme.name,
+      slug: l.theme.slug,
+      coverUrl: l.theme.coverUrl,
+      platform: l.theme.platform as any,
+      accessLevel: l.theme.accessLevel as any,
+      requiredDiscordRoleIds: l.theme.requiredDiscordRoleIds,
+      downloadCount: l.theme.downloadCount,
+      likeCount: l.theme.likeCount,
+      isFeatured: l.theme.isFeatured,
+      isLiked: true,
+      publishedAt: l.theme.publishedAt,
+      author: l.theme.author,
+      categories: l.theme.categories.map((c) => c.category),
+      likedAt: l.createdAt,
+    }));
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async recordDownloadAndIncrement(

@@ -140,6 +140,25 @@
     - Đã gắn `requireFeatureFlag(FEATURE_FLAGS.DISCORD_LOGIN_ENABLED)` trên Discord auth route; kiểm tra `FEATURE_FLAGS.DISCORD_GATED_DOWNLOAD` và `FEATURE_FLAGS.THEME_ANNOUNCEMENT_WEBHOOK` trong `KeyboardService`.
   - **HTTPS Enforcement for Google Drive**:
     - Ép buộc giao thức `https://` và allowlist chính xác các domain Google Drive hợp lệ.
+- **KeyboardHub Platform Transformation (2026-08-26)**:
+  - **Themes System (`/api/v1/keyboards`)**:
+    - Hỗ trợ đầy đủ tương tác Thả tim (`POST /:slug/like`), danh sách theme đã thích (`GET /me/liked`), và phân loại theo Creator, Platform (iOS/Android/Both), Access Level (Free/Premium/Discord Member/Role).
+    - Public responses chuẩn hóa kèm thông tin Creator (`author: { id, fullName, username, avatarUrl }`), `likeCount`, `downloadCount`, `isLiked`.
+  - **Creators System (`src/modules/creator/` & `/api/v1/creators`)**:
+    - Public Creator Profile (`@username`, bio, avatar, banner, mạng xã hội).
+    - Tính toán metrics tức thời: `themesCount`, `downloadsCount`, `followersCount`, `likesCount`, `collectionsCount`.
+    - Follow & Unfollow Engine (`POST /:username/follow`) với atomic transaction cập nhật `followerCount`.
+    - Endpoint danh sách theo dõi của người dùng (`GET /api/v1/creators/me/following`).
+  - **Collections System (`src/modules/collection/` & `/api/v1/collections`)**:
+    - Bộ sưu tập Curated / Creator Collections nhiều theme với thứ tự `position`.
+    - Phân quyền cập nhật/xóa theo quyền sở hữu (Owner hoặc Admin).
+    - Hạn mức số lượng theme tối đa qua `collections.max_themes_per_collection` trong `SystemConfig`.
+  - **Creator Studio (`src/modules/studio/` & `/api/v1/studio`)**:
+    - Cổng quản trị chuyên biệt dành cho Creator: Dashboard tổng hợp metrics, biểu đồ xu hướng tải 30 ngày theo ngày (UTC+7), Top 5 theme thịnh hành.
+    - Quản lý theme của creator (đăng theme mới, chỉnh sửa, xóa/archive).
+    - Cập nhật hồ sơ Creator & Quy trình đăng ký Creator (`POST /apply`).
+  - **Database Migration**:
+    - Migration `20260826000000_add_keyboard_hub_platform_models` tạo bảng `keyboard_likes`, `user_follows`, `collections`, `collection_items`, bổ sung các cột và composite indexes vào `users` và `keyboard_themes`.
 
 
 

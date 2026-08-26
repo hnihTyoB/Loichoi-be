@@ -9,6 +9,9 @@ import systemConfigRoute from '../modules/system-config/system-config.route';
 import cronRoute from '../modules/cron/cron.route';
 import categoryRoute from '../modules/category/category.route';
 import keyboardRoute from '../modules/keyboard/keyboard.route';
+import creatorRoute from '../modules/creator/creator.route';
+import collectionRoute from '../modules/collection/collection.route';
+import studioRoute from '../modules/studio/studio.route';
 import healthRoute from './health.route';
 import { maintenanceGuard } from '../middlewares/maintenance.middleware';
 
@@ -30,7 +33,11 @@ router.use('/integrations', integrationRoute);
 router.use('/cron', cronRoute);
 router.use('/categories', categoryRoute);
 router.use('/keyboards', keyboardRoute);
+router.use('/creators', creatorRoute);
+router.use('/collections', collectionRoute);
+router.use('/studio', studioRoute);
 
 export default router;
+
 
 

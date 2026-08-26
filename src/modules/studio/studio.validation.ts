@@ -1,21 +1,56 @@
 import { z } from 'zod';
-import { isGoogleDriveUrl } from '../../common/constants/keyboard.constant';
 import { isPublicHttpUrl } from '../../common/helpers/url.helper';
+import { isGoogleDriveUrl } from '../../common/constants/keyboard.constant';
+import { slugRegex, previewImageItemSchema } from '../keyboard/keyboard.validation';
 
-export const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-
-export const previewImageItemSchema = z.object({
-  url: z
+export const studioUpdateProfileSchema = z.object({
+  username: z
     .string()
-    .url('URL ảnh xem trước không hợp lệ')
+    .min(2, 'Username phải có tối thiểu 2 ký tự')
+    .max(50, 'Username tối đa 50 ký tự')
+    .regex(/^[a-zA-Z0-9_.-]+$/, 'Username chỉ được chứa chữ cái, số, dấu gạch dưới, gạch ngang và dấu chấm')
+    .optional(),
+  fullName: z.string().min(2, 'Họ tên tối thiểu 2 ký tự').max(100, 'Họ tên tối đa 100 ký tự').trim().optional(),
+  bio: z.string().max(1000, 'Bio tối đa 1000 ký tự').optional().nullable(),
+  avatarUrl: z
+    .string()
+    .url('URL ảnh đại diện không hợp lệ')
     .refine((url) => isPublicHttpUrl(url), {
-      message: 'URL ảnh xem trước không an toàn hoặc không hợp lệ',
-    }),
-  altText: z.string().max(200, 'Alt text tối đa 200 ký tự').optional(),
-  position: z.number().int().min(0, 'Position phải là số nguyên không âm'),
+      message: 'URL ảnh đại diện không an toàn hoặc không hợp lệ',
+    })
+    .optional()
+    .nullable(),
+  bannerUrl: z
+    .string()
+    .url('URL ảnh banner không hợp lệ')
+    .refine((url) => isPublicHttpUrl(url), {
+      message: 'URL ảnh banner không an toàn hoặc không hợp lệ',
+    })
+    .optional()
+    .nullable(),
+  socialLinks: z.record(z.string().url('Link mạng xã hội không hợp lệ')).optional().nullable(),
 });
 
-export const createKeyboardSchema = z
+export const studioApplySchema = z.object({
+  username: z
+    .string()
+    .min(2, 'Username phải có tối thiểu 2 ký tự')
+    .max(50, 'Username tối đa 50 ký tự')
+    .regex(/^[a-zA-Z0-9_.-]+$/, 'Username chỉ được chứa chữ cái, số, dấu gạch dưới, gạch ngang và dấu chấm'),
+  bio: z.string().max(1000, 'Bio tối đa 1000 ký tự').optional(),
+  socialLinks: z.record(z.string().url('Link mạng xã hội không hợp lệ')).optional(),
+});
+
+export const studioThemeQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  search: z.string().trim().optional(),
+  status: z.enum(['DRAFT', 'PUBLISHED', 'HIDDEN']).optional(),
+  categoryId: z.string().uuid().optional(),
+  sort: z.string().optional().default('createdAt_desc'),
+});
+
+export const studioCreateThemeSchema = z
   .object({
     name: z.string().min(3, 'Tên theme phải có tối thiểu 3 ký tự').max(150, 'Tên theme tối đa 150 ký tự').trim(),
     slug: z
@@ -44,7 +79,6 @@ export const createKeyboardSchema = z
     accessLevel: z.enum(['FREE', 'PREMIUM', 'DISCORD_MEMBER', 'DISCORD_ROLE']).optional().default('FREE'),
     requiredDiscordRoleIds: z.array(z.string().trim().min(1, 'Role ID không được rỗng')).optional().default([]),
     categoryIds: z.array(z.string().uuid('Category ID phải là UUID hợp lệ')),
-    isFeatured: z.boolean().optional().default(false),
     previewImages: z.array(previewImageItemSchema).max(10, 'Tối đa 10 ảnh xem trước').optional().default([]),
   })
   .refine(
@@ -72,7 +106,7 @@ export const createKeyboardSchema = z
     },
   );
 
-export const updateKeyboardSchema = z
+export const studioUpdateThemeSchema = z
   .object({
     name: z.string().min(3, 'Tên theme phải có tối thiểu 3 ký tự').max(150, 'Tên theme tối đa 150 ký tự').trim().optional(),
     slug: z
@@ -101,7 +135,6 @@ export const updateKeyboardSchema = z
     accessLevel: z.enum(['FREE', 'PREMIUM', 'DISCORD_MEMBER', 'DISCORD_ROLE']).optional(),
     requiredDiscordRoleIds: z.array(z.string().trim().min(1, 'Role ID không được rỗng')).optional(),
     categoryIds: z.array(z.string().uuid('Category ID phải là UUID hợp lệ')).optional(),
-    isFeatured: z.boolean().optional(),
     previewImages: z.array(previewImageItemSchema).max(10, 'Tối đa 10 ảnh xem trước').optional(),
   })
   .refine(
@@ -128,44 +161,3 @@ export const updateKeyboardSchema = z
       path: ['requiredDiscordRoleIds'],
     },
   );
-
-export const keyboardIdParamSchema = z.object({
-  id: z.string().uuid('ID theme phải là UUID hợp lệ'),
-});
-
-export const userIdParamSchema = z.object({
-  userId: z.string().uuid('User ID phải là UUID hợp lệ'),
-});
-
-export const keyboardSlugParamSchema = z.object({
-  slug: z.string().min(2).max(100).regex(slugRegex, 'Slug không đúng định dạng'),
-});
-
-export const keyboardPublicQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-  search: z.string().trim().optional(),
-  category: z.string().trim().optional(),
-  platform: z.enum(['IOS', 'ANDROID', 'BOTH']).optional(),
-  accessLevel: z.enum(['FREE', 'PREMIUM', 'DISCORD_MEMBER', 'DISCORD_ROLE']).optional(),
-  isFeatured: z
-    .enum(['true', 'false'])
-    .transform((val) => val === 'true')
-    .optional(),
-  creator: z.string().trim().optional(),
-  sort: z.enum(['LATEST', 'POPULAR', 'TOP_LIKED', 'TOP_DOWNLOADED', 'NAME_ASC', 'NAME_DESC']).optional().default('LATEST'),
-});
-
-export const keyboardManagementQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-  search: z.string().trim().optional(),
-  status: z.enum(['DRAFT', 'PUBLISHED', 'HIDDEN']).optional(),
-  categoryId: z.string().uuid().optional(),
-  platform: z.enum(['IOS', 'ANDROID', 'BOTH']).optional(),
-  isFeatured: z
-    .enum(['true', 'false'])
-    .transform((val) => val === 'true')
-    .optional(),
-  sort: z.string().optional().default('createdAt_desc'),
-});

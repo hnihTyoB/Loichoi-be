@@ -52,3 +52,32 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
     }
   }
 }
+
+export function optionalAuthMiddleware(req: Request, res: Response, next: NextFunction): void {
+  const token = extractTokenFromRequest(req);
+
+  if (!token) {
+    next();
+    return;
+  }
+
+  try {
+    const payload = jwt.verify(token, jwtConfig.accessSecret) as {
+      id: string;
+      email: string;
+      role: string;
+      roleId?: string;
+    };
+
+    req.user = {
+      id: payload.id,
+      email: payload.email,
+      role: payload.role,
+      roleId: payload.roleId,
+    };
+  } catch {
+    // Silent ignore if token is invalid or expired for optional auth
+  }
+
+  next();
+}

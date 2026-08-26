@@ -54,10 +54,25 @@ const SYSTEM_PERMISSIONS = [
   { name: 'CATEGORY_CREATE', resource: 'CATEGORY', action: 'CREATE', description: 'Tạo mới danh mục' },
   { name: 'CATEGORY_UPDATE', resource: 'CATEGORY', action: 'UPDATE', description: 'Chỉnh sửa danh mục' },
   { name: 'CATEGORY_DELETE', resource: 'CATEGORY', action: 'DELETE', description: 'Xóa danh mục' },
+
+  // Collections Management
+  { name: 'COLLECTION_READ', resource: 'COLLECTION', action: 'READ', description: 'Xem danh sách bộ sưu tập' },
+  { name: 'COLLECTION_CREATE', resource: 'COLLECTION', action: 'CREATE', description: 'Tạo mới bộ sưu tập' },
+  { name: 'COLLECTION_UPDATE', resource: 'COLLECTION', action: 'UPDATE', description: 'Chỉnh sửa bộ sưu tập' },
+  { name: 'COLLECTION_DELETE', resource: 'COLLECTION', action: 'DELETE', description: 'Xóa bộ sưu tập' },
+
+  // Creator Studio & Creator Management
+  { name: 'STUDIO_ACCESS', resource: 'STUDIO', action: 'ACCESS', description: 'Truy cập Creator Studio' },
+  { name: 'CREATOR_MANAGE', resource: 'CREATOR', action: 'MANAGE', description: 'Quản lý tài khoản và xét duyệt Creator' },
 ];
 
 const USER_BASE_PERMISSIONS: string[] = [
   'NOTIFICATION_READ',
+  'COLLECTION_READ',
+  'COLLECTION_CREATE',
+  'COLLECTION_UPDATE',
+  'COLLECTION_DELETE',
+  'STUDIO_ACCESS',
 ];
 
 const MANAGER_PERMISSIONS: string[] = [
@@ -74,6 +89,12 @@ const MANAGER_PERMISSIONS: string[] = [
   'WEBHOOK_READ',
   'KEYBOARD_READ',
   'CATEGORY_READ',
+  'COLLECTION_READ',
+  'COLLECTION_CREATE',
+  'COLLECTION_UPDATE',
+  'COLLECTION_DELETE',
+  'STUDIO_ACCESS',
+  'CREATOR_MANAGE',
 ];
 
 async function main() {
@@ -105,9 +126,11 @@ async function main() {
   // 2. Seed System Roles
   const roles = [
     { name: 'ADMIN', description: 'Quản trị viên toàn quyền hệ thống', isSystem: true },
-    { name: 'MANAGER', description: 'Quản lý tài chính và người dùng', isSystem: true },
+    { name: 'MANAGER', description: 'Quản lý nội dung và người dùng', isSystem: true },
+    { name: 'CREATOR', description: 'Người sáng tạo giao diện bàn phím', isSystem: true },
     { name: 'USER', description: 'Người dùng thông thường', isSystem: true },
   ];
+
 
   const roleMap: Record<string, string> = {};
   for (const r of roles) {
@@ -131,6 +154,17 @@ async function main() {
   const rolePermissionAssignments: Record<string, string[]> = {
     ADMIN: SYSTEM_PERMISSIONS.map((p) => p.name),
     MANAGER: MANAGER_PERMISSIONS,
+    CREATOR: [
+      'NOTIFICATION_READ',
+      'KEYBOARD_READ',
+      'KEYBOARD_CREATE',
+      'KEYBOARD_UPDATE',
+      'COLLECTION_READ',
+      'COLLECTION_CREATE',
+      'COLLECTION_UPDATE',
+      'COLLECTION_DELETE',
+      'STUDIO_ACCESS',
+    ],
     USER: USER_BASE_PERMISSIONS,
   };
 
@@ -157,12 +191,15 @@ async function main() {
     console.log(`Mapped ${permList.length} permissions to role ${roleName}`);
   }
 
-  // 4. Seed Standard Users
+  // 4. Seed Standard Users & Sample Creator
   const adminEmail = 'admin@template.local';
   const adminPassword = await bcrypt.hash('Admin@123456', 10);
 
   const managerEmail = 'manager@template.local';
   const managerPassword = await bcrypt.hash('Manager@123456', 10);
+
+  const creatorEmail = 'kurothemes@template.local';
+  const creatorPassword = await bcrypt.hash('Creator@123456', 10);
 
   const userEmail = 'user@template.local';
   const userPassword = await bcrypt.hash('User@123456', 10);
@@ -172,6 +209,7 @@ async function main() {
     update: {
       password: adminPassword,
       fullName: 'Admin',
+      username: 'admin',
       roleId: roleMap['ADMIN'],
       isActive: true,
     },
@@ -179,6 +217,7 @@ async function main() {
       email: adminEmail,
       password: adminPassword,
       fullName: 'Admin',
+      username: 'admin',
       roleId: roleMap['ADMIN'],
       isActive: true,
     },
@@ -189,6 +228,7 @@ async function main() {
     update: {
       password: managerPassword,
       fullName: 'Manager',
+      username: 'manager',
       roleId: roleMap['MANAGER'],
       isActive: true,
     },
@@ -196,16 +236,55 @@ async function main() {
       email: managerEmail,
       password: managerPassword,
       fullName: 'Manager',
+      username: 'manager',
       roleId: roleMap['MANAGER'],
       isActive: true,
     },
   });
 
-  await prisma.user.upsert({
+  const kuroUser = await prisma.user.upsert({
+    where: { email: creatorEmail },
+    update: {
+      password: creatorPassword,
+      fullName: 'Kuro Themes',
+      username: 'kurothemes',
+      bio: 'Specialized in aesthetic pastel and anime keyboard themes for iOS & Android. 18 themes, 126K downloads, 12K followers.',
+      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb',
+      bannerUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe',
+      isCreator: true,
+      isFeaturedCreator: true,
+      socialLinks: {
+        twitter: 'https://twitter.com/kurothemes',
+        discord: 'https://discord.gg/kurothemes',
+      },
+      roleId: roleMap['CREATOR'],
+      isActive: true,
+    },
+    create: {
+      email: creatorEmail,
+      password: creatorPassword,
+      fullName: 'Kuro Themes',
+      username: 'kurothemes',
+      bio: 'Specialized in aesthetic pastel and anime keyboard themes for iOS & Android. 18 themes, 126K downloads, 12K followers.',
+      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb',
+      bannerUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe',
+      isCreator: true,
+      isFeaturedCreator: true,
+      socialLinks: {
+        twitter: 'https://twitter.com/kurothemes',
+        discord: 'https://discord.gg/kurothemes',
+      },
+      roleId: roleMap['CREATOR'],
+      isActive: true,
+    },
+  });
+
+  const normalUser = await prisma.user.upsert({
     where: { email: userEmail },
     update: {
       password: userPassword,
       fullName: 'User',
+      username: 'user',
       roleId: roleMap['USER'],
       isActive: true,
     },
@@ -213,8 +292,24 @@ async function main() {
       email: userEmail,
       password: userPassword,
       fullName: 'User',
+      username: 'user',
       roleId: roleMap['USER'],
       isActive: true,
+    },
+  });
+
+  // Seed Follow relation: normalUser follows @kurothemes
+  await prisma.userFollow.upsert({
+    where: {
+      followerId_followingId: {
+        followerId: normalUser.id,
+        followingId: kuroUser.id,
+      },
+    },
+    update: {},
+    create: {
+      followerId: normalUser.id,
+      followingId: kuroUser.id,
     },
   });
 
@@ -350,16 +445,135 @@ async function main() {
     { name: 'Gaming', slug: 'gaming' },
   ];
 
+  const categoryMap: Record<string, string> = {};
   for (const cat of DEFAULT_CATEGORIES) {
-    await prisma.category.upsert({
+    const record = await prisma.category.upsert({
       where: { slug: cat.slug },
       update: { name: cat.name, isActive: true },
       create: { name: cat.name, slug: cat.slug, isActive: true },
     });
+    categoryMap[cat.slug] = record.id;
   }
   console.log('Default Categories seeded (5 categories)');
 
-  // 8. Seed Default System Configurations & Feature Flags
+  // 8. Seed Sample Keyboard Themes for @kurothemes
+  const sakuraTheme = await prisma.keyboardTheme.upsert({
+    where: { slug: 'sakura-dream' },
+    update: {
+      name: 'Sakura Dream',
+      description: 'Soft pink sakura aesthetic keyboard with custom keycaps and blossom animations.',
+      coverUrl: 'https://images.unsplash.com/photo-1522383225653-ed111181a951',
+      driveUrl: 'https://drive.google.com/file/d/1sakuradreamtheme/view',
+      platform: 'BOTH',
+      status: 'PUBLISHED',
+      accessLevel: 'FREE',
+      downloadCount: 126000,
+      likeCount: 3400,
+      isFeatured: true,
+      publishedAt: new Date(),
+      createdBy: kuroUser.id,
+    },
+    create: {
+      name: 'Sakura Dream',
+      slug: 'sakura-dream',
+      description: 'Soft pink sakura aesthetic keyboard with custom keycaps and blossom animations.',
+      coverUrl: 'https://images.unsplash.com/photo-1522383225653-ed111181a951',
+      driveUrl: 'https://drive.google.com/file/d/1sakuradreamtheme/view',
+      platform: 'BOTH',
+      status: 'PUBLISHED',
+      accessLevel: 'FREE',
+      downloadCount: 126000,
+      likeCount: 3400,
+      isFeatured: true,
+      publishedAt: new Date(),
+      createdBy: kuroUser.id,
+    },
+  });
+
+  if (categoryMap['pastel'] && categoryMap['anime']) {
+    await prisma.keyboardThemeCategory.upsert({
+      where: {
+        keyboardThemeId_categoryId: {
+          keyboardThemeId: sakuraTheme.id,
+          categoryId: categoryMap['pastel'],
+        },
+      },
+      update: {},
+      create: {
+        keyboardThemeId: sakuraTheme.id,
+        categoryId: categoryMap['pastel'],
+      },
+    });
+
+    await prisma.keyboardThemeCategory.upsert({
+      where: {
+        keyboardThemeId_categoryId: {
+          keyboardThemeId: sakuraTheme.id,
+          categoryId: categoryMap['anime'],
+        },
+      },
+      update: {},
+      create: {
+        keyboardThemeId: sakuraTheme.id,
+        categoryId: categoryMap['anime'],
+      },
+    });
+  }
+
+  // Seed sample like on Sakura Dream
+  await prisma.keyboardLike.upsert({
+    where: {
+      userId_keyboardThemeId: {
+        userId: normalUser.id,
+        keyboardThemeId: sakuraTheme.id,
+      },
+    },
+    update: {},
+    create: {
+      userId: normalUser.id,
+      keyboardThemeId: sakuraTheme.id,
+    },
+  });
+
+  // Seed sample Collection
+  const sampleCollection = await prisma.collection.upsert({
+    where: { slug: 'sakura-pastel-aesthetics' },
+    update: {
+      name: 'Sakura & Pastel Aesthetics',
+      description: 'A hand-curated collection of calming pastel pinks and cherry blossom designs.',
+      coverUrl: 'https://images.unsplash.com/photo-1522383225653-ed111181a951',
+      isPublic: true,
+      isFeatured: true,
+      userId: kuroUser.id,
+    },
+    create: {
+      name: 'Sakura & Pastel Aesthetics',
+      slug: 'sakura-pastel-aesthetics',
+      description: 'A hand-curated collection of calming pastel pinks and cherry blossom designs.',
+      coverUrl: 'https://images.unsplash.com/photo-1522383225653-ed111181a951',
+      isPublic: true,
+      isFeatured: true,
+      userId: kuroUser.id,
+    },
+  });
+
+  await prisma.collectionItem.upsert({
+    where: {
+      collectionId_keyboardThemeId: {
+        collectionId: sampleCollection.id,
+        keyboardThemeId: sakuraTheme.id,
+      },
+    },
+    update: {},
+    create: {
+      collectionId: sampleCollection.id,
+      keyboardThemeId: sakuraTheme.id,
+      position: 0,
+    },
+  });
+  console.log('Sample KeyboardHub Theme and Collection seeded');
+
+  // 9. Seed Default System Configurations & Feature Flags
   const { DEFAULT_SYSTEM_CONFIGS } = await import('../src/common/constants/system-config.constant');
   for (const cfg of DEFAULT_SYSTEM_CONFIGS) {
     await prisma.systemConfig.upsert({
@@ -391,3 +605,4 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+

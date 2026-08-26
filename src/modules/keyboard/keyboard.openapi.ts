@@ -9,6 +9,13 @@ import {
 } from './keyboard.validation';
 import { z } from 'zod';
 
+const CreatorSummarySchema = z.object({
+  id: z.string().uuid(),
+  fullName: z.string().nullable().openapi({ example: 'Kuro Themes' }),
+  username: z.string().nullable().openapi({ example: 'kurothemes' }),
+  avatarUrl: z.string().url().nullable().openapi({ example: 'https://example.com/avatar.jpg' }),
+});
+
 export function registerKeyboardOpenApi(): void {
   openapiRegistry.register('CreateKeyboardRequest', createKeyboardSchema);
   openapiRegistry.register('UpdateKeyboardRequest', updateKeyboardSchema);
@@ -19,7 +26,7 @@ export function registerKeyboardOpenApi(): void {
     path: '/keyboards',
     tags: ['Keyboard Themes'],
     summary: 'Danh sách giao diện bàn phím đã phát hành (Public)',
-    description: 'Tìm kiếm, lọc theo danh mục / nền tảng và phân trang cho các theme PUBLISHED.',
+    description: 'Tìm kiếm, lọc theo danh mục / nền tảng / tác giả / mức giá và phân trang cho các theme PUBLISHED.',
     request: { query: keyboardPublicQuerySchema },
     responses: {
       200: {
@@ -31,14 +38,18 @@ export function registerKeyboardOpenApi(): void {
               data: z.array(
                 z.object({
                   id: z.string().uuid(),
-                  name: z.string().openapi({ example: 'Sakura Night' }),
-                  slug: z.string().openapi({ example: 'sakura-night' }),
+                  name: z.string().openapi({ example: 'Sakura Dream' }),
+                  slug: z.string().openapi({ example: 'sakura-dream' }),
                   coverUrl: z.string().url(),
                   platform: z.enum(['IOS', 'ANDROID', 'BOTH']),
-                  accessLevel: z.enum(['FREE', 'DISCORD_MEMBER', 'DISCORD_ROLE']),
+                  accessLevel: z.enum(['FREE', 'PREMIUM', 'DISCORD_MEMBER', 'DISCORD_ROLE']),
                   requiredDiscordRoleIds: z.array(z.string()).openapi({ example: ['123456789012345678'] }),
-                  downloadCount: z.number().int().openapi({ example: 1250 }),
+                  downloadCount: z.number().int().openapi({ example: 126000 }),
+                  likeCount: z.number().int().openapi({ example: 3400 }),
+                  isFeatured: z.boolean().openapi({ example: true }),
+                  isLiked: z.boolean().optional().openapi({ example: false }),
                   publishedAt: z.string().datetime().nullable(),
+                  author: CreatorSummarySchema.nullable(),
                   categories: z.array(
                     z.object({
                       id: z.string().uuid(),
@@ -56,13 +67,79 @@ export function registerKeyboardOpenApi(): void {
     },
   });
 
-  // 2. GET /keyboards/{slug} (Public detail)
+  // 2. GET /keyboards/me/liked (User's liked themes)
+  openapiRegistry.registerPath({
+    method: 'get',
+    path: '/keyboards/me/liked',
+    tags: ['Keyboard Themes'],
+    summary: 'Danh sách giao diện bàn phím người dùng đã thả tim (Yêu cầu đăng nhập)',
+    security: [{ BearerAuth: [] }],
+    responses: {
+      200: {
+        description: 'Lấy danh sách theme đã thích thành công',
+        content: {
+          'application/json': {
+            schema: z.object({
+              success: z.boolean().openapi({ example: true }),
+              data: z.array(
+                z.object({
+                  id: z.string().uuid(),
+                  name: z.string().openapi({ example: 'Sakura Dream' }),
+                  slug: z.string().openapi({ example: 'sakura-dream' }),
+                  coverUrl: z.string().url(),
+                  platform: z.enum(['IOS', 'ANDROID', 'BOTH']),
+                  accessLevel: z.enum(['FREE', 'PREMIUM', 'DISCORD_MEMBER', 'DISCORD_ROLE']),
+                  downloadCount: z.number().int(),
+                  likeCount: z.number().int(),
+                  isFeatured: z.boolean(),
+                  isLiked: z.boolean().openapi({ example: true }),
+                  publishedAt: z.string().datetime().nullable(),
+                  author: CreatorSummarySchema.nullable(),
+                  likedAt: z.string().datetime(),
+                }),
+              ),
+              meta: PaginationMetaSchema,
+            }),
+          },
+        },
+      },
+    },
+  });
+
+  // 3. POST /keyboards/{slug}/like (Toggle like)
+  openapiRegistry.registerPath({
+    method: 'post',
+    path: '/keyboards/{slug}/like',
+    tags: ['Keyboard Themes'],
+    summary: 'Thả tim / Bỏ thả tim giao diện bàn phím (Yêu cầu đăng nhập)',
+    security: [{ BearerAuth: [] }],
+    request: { params: keyboardSlugParamSchema },
+    responses: {
+      200: {
+        description: 'Thực hiện thả tim hoặc bỏ thả tim thành công',
+        content: {
+          'application/json': {
+            schema: z.object({
+              success: z.boolean().openapi({ example: true }),
+              themeId: z.string().uuid(),
+              slug: z.string(),
+              liked: z.boolean().openapi({ example: true }),
+              likeCount: z.number().int().openapi({ example: 3401 }),
+              message: z.string().openapi({ example: 'Đã thêm vào danh sách yêu thích' }),
+            }),
+          },
+        },
+      },
+    },
+  });
+
+  // 4. GET /keyboards/{slug} (Public detail)
   openapiRegistry.registerPath({
     method: 'get',
     path: '/keyboards/{slug}',
     tags: ['Keyboard Themes'],
     summary: 'Xem chi tiết giao diện bàn phím theo slug (Public)',
-    description: 'Lấy thông tin chi tiết của theme PUBLISHED kèm cover, preview images và cấp độ phân quyền accessLevel.',
+    description: 'Lấy thông tin chi tiết của theme PUBLISHED kèm cover, preview images, author profile và lượt like.',
     request: { params: keyboardSlugParamSchema },
     responses: {
       200: {
@@ -73,15 +150,19 @@ export function registerKeyboardOpenApi(): void {
               success: z.boolean().openapi({ example: true }),
               data: z.object({
                 id: z.string().uuid(),
-                name: z.string().openapi({ example: 'Sakura Night' }),
-                slug: z.string().openapi({ example: 'sakura-night' }),
+                name: z.string().openapi({ example: 'Sakura Dream' }),
+                slug: z.string().openapi({ example: 'sakura-dream' }),
                 description: z.string().nullable(),
                 coverUrl: z.string().url(),
                 platform: z.enum(['IOS', 'ANDROID', 'BOTH']),
-                accessLevel: z.enum(['FREE', 'DISCORD_MEMBER', 'DISCORD_ROLE']),
+                accessLevel: z.enum(['FREE', 'PREMIUM', 'DISCORD_MEMBER', 'DISCORD_ROLE']),
                 requiredDiscordRoleIds: z.array(z.string()).openapi({ example: ['123456789012345678'] }),
-                downloadCount: z.number().int().openapi({ example: 1250 }),
+                downloadCount: z.number().int().openapi({ example: 126000 }),
+                likeCount: z.number().int().openapi({ example: 3400 }),
+                isFeatured: z.boolean().openapi({ example: true }),
+                isLiked: z.boolean().optional(),
                 publishedAt: z.string().datetime().nullable(),
+                author: CreatorSummarySchema.nullable(),
                 categories: z.array(
                   z.object({
                     id: z.string().uuid(),
@@ -108,7 +189,7 @@ export function registerKeyboardOpenApi(): void {
     },
   });
 
-  // 3. POST /keyboards/{slug}/download (Authenticated download)
+  // 5. POST /keyboards/{slug}/download (Authenticated download)
   openapiRegistry.registerPath({
     method: 'post',
     path: '/keyboards/{slug}/download',
@@ -137,7 +218,7 @@ export function registerKeyboardOpenApi(): void {
     },
   });
 
-  // 4. GET /keyboards/manage (Management list)
+  // 6. GET /keyboards/manage (Management list)
   openapiRegistry.registerPath({
     method: 'get',
     path: '/keyboards/manage',
@@ -161,10 +242,13 @@ export function registerKeyboardOpenApi(): void {
                   driveUrl: z.string().url(),
                   platform: z.enum(['IOS', 'ANDROID', 'BOTH']),
                   status: z.enum(['DRAFT', 'PUBLISHED', 'HIDDEN']),
-                  accessLevel: z.enum(['FREE', 'DISCORD_MEMBER', 'DISCORD_ROLE']),
+                  accessLevel: z.enum(['FREE', 'PREMIUM', 'DISCORD_MEMBER', 'DISCORD_ROLE']),
                   requiredDiscordRoleIds: z.array(z.string()).openapi({ example: ['123456789012345678'] }),
                   downloadCount: z.number().int(),
+                  likeCount: z.number().int(),
+                  isFeatured: z.boolean(),
                   publishedAt: z.string().datetime().nullable(),
+                  author: CreatorSummarySchema.nullable(),
                   categoryNames: z.array(z.string()),
                   createdAt: z.string().datetime(),
                   updatedAt: z.string().datetime(),
@@ -178,7 +262,7 @@ export function registerKeyboardOpenApi(): void {
     },
   });
 
-  // 5. GET /keyboards/manage/{id} (Management detail)
+  // 7. GET /keyboards/manage/{id} (Management detail)
   openapiRegistry.registerPath({
     method: 'get',
     path: '/keyboards/manage/{id}',
@@ -202,10 +286,13 @@ export function registerKeyboardOpenApi(): void {
                 driveUrl: z.string().url(),
                 platform: z.enum(['IOS', 'ANDROID', 'BOTH']),
                 status: z.enum(['DRAFT', 'PUBLISHED', 'HIDDEN']),
-                accessLevel: z.enum(['FREE', 'DISCORD_MEMBER', 'DISCORD_ROLE']),
+                accessLevel: z.enum(['FREE', 'PREMIUM', 'DISCORD_MEMBER', 'DISCORD_ROLE']),
                 requiredDiscordRoleIds: z.array(z.string()).openapi({ example: ['123456789012345678'] }),
                 downloadCount: z.number().int(),
+                likeCount: z.number().int(),
+                isFeatured: z.boolean(),
                 publishedAt: z.string().datetime().nullable(),
+                author: CreatorSummarySchema.nullable(),
                 categories: z.array(
                   z.object({
                     id: z.string().uuid(),
@@ -235,7 +322,7 @@ export function registerKeyboardOpenApi(): void {
     },
   });
 
-  // 6. POST /keyboards (Create theme)
+  // 8. POST /keyboards (Create theme)
   openapiRegistry.registerPath({
     method: 'post',
     path: '/keyboards',
@@ -258,7 +345,7 @@ export function registerKeyboardOpenApi(): void {
     },
   });
 
-  // 7. PATCH /keyboards/{id} (Update theme)
+  // 9. PATCH /keyboards/{id} (Update theme)
   openapiRegistry.registerPath({
     method: 'patch',
     path: '/keyboards/{id}',
@@ -282,7 +369,7 @@ export function registerKeyboardOpenApi(): void {
     },
   });
 
-  // 8. DELETE /keyboards/{id} (Delete / Archive theme)
+  // 10. DELETE /keyboards/{id} (Delete / Archive theme)
   openapiRegistry.registerPath({
     method: 'delete',
     path: '/keyboards/{id}',
@@ -306,7 +393,7 @@ export function registerKeyboardOpenApi(): void {
     },
   });
 
-  // 9. POST /keyboards/manage/users/{userId}/reset-quota (Admin reset user quota)
+  // 11. POST /keyboards/manage/users/{userId}/reset-quota (Admin reset user quota)
   openapiRegistry.registerPath({
     method: 'post',
     path: '/keyboards/manage/users/{userId}/reset-quota',

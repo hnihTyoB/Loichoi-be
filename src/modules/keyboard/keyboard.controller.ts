@@ -13,7 +13,8 @@ export class KeyboardController {
   findPublicList = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const query = req.query as unknown as KeyboardQueryDto;
-      const result = await this.service.findPublicList(query);
+      const currentUserId = req.user?.id;
+      const result = await this.service.findPublicList(query, currentUserId);
       res.json({
         success: true,
         ...result,
@@ -25,10 +26,46 @@ export class KeyboardController {
 
   findPublicBySlug = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const data = await this.service.findPublicBySlug(req.params.slug);
+      const currentUserId = req.user?.id;
+      const data = await this.service.findPublicBySlug(req.params.slug, currentUserId);
       res.json({
         success: true,
         data,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  toggleLike = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const slug = req.params.slug;
+      const userId = req.user!.id;
+      const metadata = {
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      };
+
+      const result = await this.service.toggleLike(slug, userId, metadata);
+      res.json({
+        success: true,
+        ...result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  findUserLikedThemes = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user!.id;
+      const page = req.query.page ? Number(req.query.page) : 1;
+      const limit = req.query.limit ? Number(req.query.limit) : 20;
+
+      const result = await this.service.findUserLikedThemes(userId, page, limit);
+      res.json({
+        success: true,
+        ...result,
       });
     } catch (error) {
       next(error);
