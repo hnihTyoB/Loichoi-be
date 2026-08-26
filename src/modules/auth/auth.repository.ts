@@ -107,7 +107,7 @@ export class AuthRepository {
       return tx.verificationToken.create({
         data: {
           userId,
-          token,
+          token: hashToken(token), // BUG-06 fix: store SHA-256 hash, not raw token
           expiresAt,
         },
       });
@@ -116,7 +116,7 @@ export class AuthRepository {
 
   async findVerificationToken(token: string) {
     return prisma.verificationToken.findUnique({
-      where: { token },
+      where: { token: hashToken(token) }, // BUG-06 fix: lookup by hash
       include: { user: true },
     });
   }
@@ -202,7 +202,7 @@ export class AuthRepository {
       return tx.passwordResetToken.create({
         data: {
           userId,
-          token,
+          token: hashToken(token), // BUG-06 fix: store SHA-256 hash, not raw token
           expiresAt,
         },
       });
@@ -211,7 +211,7 @@ export class AuthRepository {
 
   async findPasswordResetToken(token: string) {
     return prisma.passwordResetToken.findUnique({
-      where: { token },
+      where: { token: hashToken(token) }, // BUG-06 fix: lookup by hash
       include: { user: true },
     });
   }
@@ -384,11 +384,13 @@ export class AuthRepository {
   }
 
   async deleteOtherSessions(userId: string, currentToken: string) {
+    // BUG-01 fix: DB stores SHA-256 hash of token; must hash currentToken before comparing
+    const hashedCurrentToken = hashToken(currentToken);
     return prisma.refreshToken.deleteMany({
       where: {
         userId,
         NOT: {
-          token: currentToken,
+          token: hashedCurrentToken,
         },
       },
     });

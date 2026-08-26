@@ -160,11 +160,16 @@
   - **Database Migration**:
     - Migration `20260826000000_add_keyboard_hub_platform_models` tạo bảng `keyboard_likes`, `user_follows`, `collections`, `collection_items`, bổ sung các cột và composite indexes vào `users` và `keyboard_themes`.
 
+## Security Fixes Applied (2026-08-26 — full-project-audit)
 
+- **Token Hash Consistency (BUG-01, BUG-02, BUG-06)**: Toàn bộ token types (`RefreshToken`, `VerificationToken`, `PasswordResetToken`) đều được hash SHA-256 trước khi lưu DB và khi lookup. **KHÔNG bao giờ so sánh raw token với DB value.**
+  - `createVerificationToken` / `findVerificationToken` → hash trước khi lưu/lookup
+  - `createPasswordResetToken` / `findPasswordResetToken` → hash trước khi lưu/lookup
+  - `deleteOtherSessions` → hash `currentToken` trước khi so sánh (dùng `hashToken()`)
+  - `getActiveSessions.isCurrent` → hash `currentToken` trước khi compare với `session.token`
 
+- **CORS Wildcard (BUG-05)**: Wildcard `*` trong production bây giờ reject explicitly. Không set `CORS_ALLOWED_ORIGINS=*` trong production.
 
+- **Body Size Limit (BUG-12)**: `express.json()` và `express.urlencoded()` đã có `limit: '512kb'`.
 
-
-
-
-
+- **P2002 Error Context (BUG-13)**: `error.middleware.ts` inspect `error.meta?.target` để trả về message cụ thể khi slug bị conflict.

@@ -392,7 +392,7 @@ export class AuthController {
       }
 
       // Safe clean redirect: Tokens are delivered via secure HttpOnly cookies, NOT in URL query string!
-      const returnBase = result.returnUrl || `${envConfig.frontendUrl}/auth/callback`;
+      const returnBase = result.returnUrl || `${envConfig.frontendUrl}/callback/discord`;
       const url = new URL(returnBase);
       url.searchParams.set('status', 'success');
       url.searchParams.set('provider', 'discord');

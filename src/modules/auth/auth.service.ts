@@ -362,13 +362,17 @@ export class AuthService {
   }
 
   async getActiveSessions(userId: string, currentToken?: string) {
+    // BUG-02 fix: session.token is stored as SHA-256 hash; hash currentToken for correct comparison
+    const hashedCurrentToken = currentToken
+      ? crypto.createHash('sha256').update(currentToken).digest('hex')
+      : undefined;
     const sessions = await this.repository.findSessionsByUserId(userId);
     return sessions.map(session => ({
       id: session.id,
       deviceName: parseUserAgent(session.userAgent || undefined),
       ipAddress: session.ipAddress || 'Không rõ',
       createdAt: session.createdAt,
-      isCurrent: currentToken ? session.token === currentToken : false,
+      isCurrent: hashedCurrentToken ? session.token === hashedCurrentToken : false,
     }));
   }
 

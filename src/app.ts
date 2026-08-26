@@ -31,6 +31,10 @@ const corsOptions: cors.CorsOptions = {
         callback(null, true);
         return;
       }
+      // BUG-05 fix: wildcard in production is a misconfiguration — reject explicitly instead of fall-through
+      console.error('[CORS] CORS_ALLOWED_ORIGINS=* is not permitted in production. Configure specific origins.');
+      callback(null, false);
+      return;
     }
     if (allowed.includes(origin)) {
       callback(null, true);
@@ -42,8 +46,8 @@ const corsOptions: cors.CorsOptions = {
 };
 app.use(cors(corsOptions));
 app.use(morgan(envConfig.nodeEnv === 'production' ? 'combined' : 'dev'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '512kb' })); // BUG-12 fix: explicit body size limit to prevent large-payload DoS
+app.use(express.urlencoded({ extended: true, limit: '512kb' }));
 app.use(cookieParser());
 
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerOptions));

@@ -41,6 +41,16 @@ export function errorMiddleware(
 
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === 'P2002') {
+      // BUG-13 fix: return field-specific message when conflicting unique field is slug
+      const conflictingFields = (error.meta?.target as string[] | undefined) ?? [];
+      if (conflictingFields.some(f => f.toLowerCase().includes('slug'))) {
+        res.status(409).json({
+          success: false,
+          message: 'Đường dẫn định danh (slug) đã tồn tại. Vui lòng chọn tên khác.',
+          code: ERROR_CODE.DUPLICATE_ENTRY,
+        });
+        return;
+      }
       res.status(409).json({
         success: false,
         message: 'Dữ liệu đã tồn tại trong hệ thống (trùng lặp giá trị duy nhất)',
