@@ -6,6 +6,14 @@ import { AppError } from '../../common/errors/app-error';
 import { ERROR_CODE } from '../../common/errors/error-code';
 import { envConfig } from '../../config/env.config';
 
+const isProduction = process.env.NODE_ENV === 'production';
+const getCookieOptions = (maxAge?: number) => ({
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+  ...(maxAge !== undefined ? { maxAge } : {}),
+});
+
 export class AuthController {
   private readonly service = new AuthService();
 
@@ -16,19 +24,8 @@ export class AuthController {
       const ipAddress = req.ip;
       const result = await this.service.login(body, { userAgent, ipAddress });
 
-      res.cookie('accessToken', result.accessToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 30 * 60 * 1000, // 30 minutes
-      });
-
-      res.cookie('refreshToken', result.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      });
+      res.cookie('accessToken', result.accessToken, getCookieOptions(30 * 60 * 1000));
+      res.cookie('refreshToken', result.refreshToken, getCookieOptions(7 * 24 * 60 * 60 * 1000));
 
       res.json({
         success: true,
@@ -67,19 +64,8 @@ export class AuthController {
       const ipAddress = req.ip;
       const result = await this.service.refresh(refreshToken, { userAgent, ipAddress });
 
-      res.cookie('accessToken', result.accessToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 30 * 60 * 1000, // 30 minutes
-      });
-
-      res.cookie('refreshToken', result.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
+      res.cookie('accessToken', result.accessToken, getCookieOptions(30 * 60 * 1000));
+      res.cookie('refreshToken', result.refreshToken, getCookieOptions(7 * 24 * 60 * 60 * 1000));
 
       res.json({
         success: true,
@@ -100,13 +86,9 @@ export class AuthController {
         await this.service.logout(refreshToken);
       }
 
-      const cookieOptions = {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict' as const,
-      };
-      res.clearCookie('accessToken', cookieOptions);
-      res.clearCookie('refreshToken', cookieOptions);
+      const clearOptions = getCookieOptions();
+      res.clearCookie('accessToken', clearOptions);
+      res.clearCookie('refreshToken', clearOptions);
 
       res.json({
         success: true,
@@ -343,12 +325,7 @@ export class AuthController {
       const nonce = crypto.randomBytes(16).toString('hex');
       const result = this.service.getDiscordAuthUrl(safeReturnUrl, nonce);
 
-      res.cookie('discord_oauth_nonce', nonce, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 5 * 60 * 1000, // 5 minutes
-      });
+      res.cookie('discord_oauth_nonce', nonce, getCookieOptions(5 * 60 * 1000));
 
       if (req.query.json === 'true' || req.headers.accept?.includes('application/json')) {
         res.json({
@@ -384,25 +361,10 @@ export class AuthController {
       );
 
       // Clean up OAuth nonce cookie
-      res.clearCookie('discord_oauth_nonce', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-      });
+      res.clearCookie('discord_oauth_nonce', getCookieOptions());
 
-      res.cookie('accessToken', result.accessToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 30 * 60 * 1000,
-      });
-
-      res.cookie('refreshToken', result.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
+      res.cookie('accessToken', result.accessToken, getCookieOptions(30 * 60 * 1000));
+      res.cookie('refreshToken', result.refreshToken, getCookieOptions(7 * 24 * 60 * 60 * 1000));
 
       if (req.query.format === 'json' || req.headers.accept?.includes('application/json')) {
         res.json({

@@ -21,11 +21,12 @@ app.use(helmet({ contentSecurityPolicy: false }));
 
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    const allowed = envConfig.cors.allowedOrigins;
+    const allowed = envConfig.cors.allowedOrigins.map((o) => o.replace(/\/+$/, ''));
     if (!origin) {
       callback(null, true);
       return;
     }
+    const cleanOrigin = origin.replace(/\/+$/, '');
     if (allowed.includes('*')) {
       if (envConfig.nodeEnv !== 'production') {
         callback(null, true);
@@ -36,7 +37,7 @@ const corsOptions: cors.CorsOptions = {
       callback(null, false);
       return;
     }
-    if (allowed.includes(origin)) {
+    if (allowed.includes(cleanOrigin)) {
       callback(null, true);
     } else {
       callback(null, false);
