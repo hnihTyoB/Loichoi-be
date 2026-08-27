@@ -91,7 +91,9 @@ export class DiscordBotService {
   }
 
   /**
-   * Bắn thông báo qua Discord Webhook khi có Keyboard Theme mới được phát hành
+   * Bắn thông báo qua Discord khi có Keyboard Theme mới được phát hành
+   * Ưu tiên gửi qua Bot Token để hỗ trợ Button Component (Style 5 - Link Button),
+   * nếu không có channelId/botToken thì fallback qua Webhook URL.
    */
   async sendThemeAnnouncement(theme: {
     name: string;
@@ -101,52 +103,78 @@ export class DiscordBotService {
     platform: string;
     accessLevel: string;
   }): Promise<void> {
-    const webhookUrl = envConfig.discord.webhookUrl;
-    if (!webhookUrl) return;
+    const { botToken, channelId, webhookUrl } = envConfig.discord;
+    if (!botToken && !webhookUrl) return;
 
     try {
       const themeUrl = `${envConfig.frontendUrl}/keyboards/${theme.slug}`;
       const logoUrl = `${envConfig.frontendUrl}/images/logos/logo_loichoi.png`;
 
-      const payload = {
-        username: 'Loichoi Keyboard',
-        avatar_url: logoUrl,
-        embeds: [
-          {
-            title: `Ra mắt Giao diện Bàn phím mới: ${theme.name}`,
-            url: themeUrl,
-            description: theme.description || 'Giao diện bàn phím mới cực đẹp đã sẵn sàng để tải về và trải nghiệm ngay!',
-            color: 0x5865f2, // Discord Blurple
-            image: {
-              url: theme.coverUrl,
-            },
-            footer: {
-              text: 'Loichoi Keyboard Theme Library',
-            },
-            timestamp: new Date().toISOString(),
-          },
-        ],
-        components: [
-          {
-            type: 1, // Action Row
-            components: [
-              {
-                type: 2, // Button
-                style: 5, // Link Button
-                label: 'Xem & Tải Bàn Phím',
-                url: themeUrl,              },
-            ],
-          },
-        ],
+      const embed = {
+        title: `Ra mắt Giao diện Bàn phím mới: ${theme.name}`,
+        url: themeUrl,
+        description: theme.description || 'Giao diện bàn phím mới cực đẹp đã sẵn sàng để tải về và trải nghiệm ngay!',
+        color: 0x5865f2, // Discord Blurple
+        image: {
+          url: theme.coverUrl,
+        },
+        footer: {
+          text: 'Loichoi Keyboard Theme Library',
+        },
+        timestamp: new Date().toISOString(),
       };
 
-      await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      const components = [
+        {
+          type: 1, // Action Row
+          components: [
+            {
+              type: 2, // Button
+              style: 5, // Link Button
+              label: 'Xem & Tải Bàn Phím',
+              url: themeUrl,
+            },
+          ],
+        },
+      ];
+
+      // 1. Ưu tiên gửi qua Bot Token vào kênh (Hỗ trợ Button Component chuẩn)
+      if (botToken && channelId) {
+        const response = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bot ${botToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            embeds: [embed],
+            components,
+          }),
+        });
+
+        if (response.ok) {
+          return;
+        }
+
+        const errBody = await response.text();
+        console.warn('[Discord Bot Channel Send Failed, falling back to Webhook]', errBody);
+      }
+
+      // 2. Fallback gửi qua Webhook nếu chưa cấu hình Channel ID hoặc Bot API gặp lỗi
+      if (webhookUrl) {
+        await fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: 'Loichoi Keyboard',
+            avatar_url: logoUrl,
+            embeds: [embed],
+            components,
+          }),
+        });
+      }
     } catch (err) {
-      console.error('[Discord Webhook Announcement Error]', err);
+      console.error('[Discord Announcement Error]', err);
     }
   }
 }

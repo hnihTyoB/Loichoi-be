@@ -106,5 +106,6 @@ export const envConfig = {
     guildId: process.env.DISCORD_GUILD_ID || '',
     inviteUrl: process.env.DISCORD_INVITE_URL || 'https://discord.gg',
     webhookUrl: process.env.DISCORD_WEBHOOK_URL || '',
+    channelId: process.env.DISCORD_ANNOUNCEMENT_CHANNEL_ID || process.env.DISCORD_CHANNEL_ID || '',
   },
 };
