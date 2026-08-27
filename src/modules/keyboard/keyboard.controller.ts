@@ -195,6 +195,16 @@ export class KeyboardController {
 
       const downloadUrl = await this.service.processDownload(slug, user, metadata);
 
+      if (req.query.format === 'json' || req.headers.accept?.includes('application/json') || req.is('application/json')) {
+        res.json({
+          success: true,
+          data: {
+            downloadUrl,
+          },
+        });
+        return;
+      }
+
       // Chuyển hướng 302 trực tiếp tới nguồn tải đã được allowlist.
       res.redirect(302, downloadUrl);
     } catch (error) {
