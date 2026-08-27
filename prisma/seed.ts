@@ -69,6 +69,18 @@ const SYSTEM_PERMISSIONS = [
   { name: 'COLLECTION_UPDATE', resource: 'COLLECTION', action: 'UPDATE', description: 'Chỉnh sửa bộ sưu tập' },
   { name: 'COLLECTION_DELETE', resource: 'COLLECTION', action: 'DELETE', description: 'Xóa bộ sưu tập' },
 
+  // Colors Management
+  { name: 'COLOR_READ', resource: 'COLOR', action: 'READ', description: 'Xem danh sách màu sắc quản trị' },
+  { name: 'COLOR_CREATE', resource: 'COLOR', action: 'CREATE', description: 'Tạo mới màu sắc' },
+  { name: 'COLOR_UPDATE', resource: 'COLOR', action: 'UPDATE', description: 'Chỉnh sửa màu sắc' },
+  { name: 'COLOR_DELETE', resource: 'COLOR', action: 'DELETE', description: 'Xóa màu sắc' },
+
+  // Styles Management
+  { name: 'STYLE_READ', resource: 'STYLE', action: 'READ', description: 'Xem danh sách phong cách quản trị' },
+  { name: 'STYLE_CREATE', resource: 'STYLE', action: 'CREATE', description: 'Tạo mới phong cách' },
+  { name: 'STYLE_UPDATE', resource: 'STYLE', action: 'UPDATE', description: 'Chỉnh sửa phong cách' },
+  { name: 'STYLE_DELETE', resource: 'STYLE', action: 'DELETE', description: 'Xóa phong cách' },
+
   // Creator Studio & Creator Management
   { name: 'STUDIO_ACCESS', resource: 'STUDIO', action: 'ACCESS', description: 'Truy cập Creator Studio' },
   { name: 'CREATOR_MANAGE', resource: 'CREATOR', action: 'MANAGE', description: 'Quản lý tài khoản và xét duyệt Creator' },
@@ -101,6 +113,12 @@ const MANAGER_PERMISSIONS: string[] = [
   'CATEGORY_READ',
   'CATEGORY_CREATE',
   'CATEGORY_UPDATE',
+  'COLOR_READ',
+  'COLOR_CREATE',
+  'COLOR_UPDATE',
+  'STYLE_READ',
+  'STYLE_CREATE',
+  'STYLE_UPDATE',
   'COLLECTION_READ',
   'COLLECTION_CREATE',
   'COLLECTION_UPDATE',
@@ -494,6 +512,66 @@ async function main() {
   }
   console.log('Default Categories seeded (5 categories)');
 
+  // 7b. Seed Default Colors
+  const DEFAULT_COLORS = [
+    { name: 'Pink', slug: 'pink', hex: '#FFB7C5' },
+    { name: 'Purple', slug: 'purple', hex: '#B57EDC' },
+    { name: 'White', slug: 'white', hex: '#FFFFFF' },
+    { name: 'Blue', slug: 'blue', hex: '#A2CFFE' },
+    { name: 'Black', slug: 'black', hex: '#1E1E2E' },
+    { name: 'Pastel Blue', slug: 'pastel-blue', hex: '#CDE4FE' },
+  ];
+
+  const colorMap: Record<string, string> = {};
+  for (const col of DEFAULT_COLORS) {
+    const record = await prisma.color.upsert({
+      where: { slug: col.slug },
+      update: {
+        name: col.name,
+        hex: col.hex,
+      },
+      create: {
+        name: col.name,
+        slug: col.slug,
+        hex: col.hex,
+      },
+    });
+    colorMap[col.slug] = record.id;
+  }
+  console.log('Default Colors seeded (6 colors)');
+
+  // 7c. Seed Default Styles
+  const DEFAULT_STYLES = [
+    { name: 'Kawaii', slug: 'kawaii', description: 'Cute, anime and soft aesthetic' },
+    { name: 'Minimal', slug: 'minimal', description: 'Clean, simple and modern design' },
+    { name: 'Cyberpunk', slug: 'cyberpunk', description: 'Futuristic neon-inspired visual style' },
+    { name: 'Retro', slug: 'retro', description: 'Vintage, 80s/90s nostalgia aesthetic' },
+    { name: 'Glass', slug: 'glass', description: 'Glassmorphism and frosted transparent aesthetic' },
+    { name: 'Pixel', slug: 'pixel', description: '8-bit and 16-bit retro pixel art style' },
+    { name: 'Neon', slug: 'neon', description: 'Glowing neon vibrant colors' },
+    { name: 'Dark', slug: 'dark', description: 'Sleek dark mode aesthetic' },
+    { name: 'Pastel', slug: 'pastel', description: 'Gentle, soothing pastel color palette' },
+    { name: 'Y2K', slug: 'y2k', description: 'Early 2000s cyber aesthetic' },
+  ];
+
+  const styleMap: Record<string, string> = {};
+  for (const st of DEFAULT_STYLES) {
+    const record = await prisma.style.upsert({
+      where: { slug: st.slug },
+      update: {
+        name: st.name,
+        description: st.description,
+      },
+      create: {
+        name: st.name,
+        slug: st.slug,
+        description: st.description,
+      },
+    });
+    styleMap[st.slug] = record.id;
+  }
+  console.log('Default Styles seeded (10 styles)');
+
   // 8. Seed Sample Keyboard Themes for @kurothemes
   const sakuraTheme = await prisma.keyboardTheme.upsert({
     where: { slug: 'sakura-dream' },
@@ -554,6 +632,70 @@ async function main() {
       create: {
         keyboardThemeId: sakuraTheme.id,
         categoryId: categoryMap['anime'],
+      },
+    });
+  }
+
+  // Link Sakura Dream to Colors: pink, white
+  if (colorMap['pink']) {
+    await prisma.keyboardColor.upsert({
+      where: {
+        keyboardThemeId_colorId: {
+          keyboardThemeId: sakuraTheme.id,
+          colorId: colorMap['pink'],
+        },
+      },
+      update: {},
+      create: {
+        keyboardThemeId: sakuraTheme.id,
+        colorId: colorMap['pink'],
+      },
+    });
+  }
+  if (colorMap['white']) {
+    await prisma.keyboardColor.upsert({
+      where: {
+        keyboardThemeId_colorId: {
+          keyboardThemeId: sakuraTheme.id,
+          colorId: colorMap['white'],
+        },
+      },
+      update: {},
+      create: {
+        keyboardThemeId: sakuraTheme.id,
+        colorId: colorMap['white'],
+      },
+    });
+  }
+
+  // Link Sakura Dream to Styles: kawaii, pastel
+  if (styleMap['kawaii']) {
+    await prisma.keyboardStyle.upsert({
+      where: {
+        keyboardThemeId_styleId: {
+          keyboardThemeId: sakuraTheme.id,
+          styleId: styleMap['kawaii'],
+        },
+      },
+      update: {},
+      create: {
+        keyboardThemeId: sakuraTheme.id,
+        styleId: styleMap['kawaii'],
+      },
+    });
+  }
+  if (styleMap['pastel']) {
+    await prisma.keyboardStyle.upsert({
+      where: {
+        keyboardThemeId_styleId: {
+          keyboardThemeId: sakuraTheme.id,
+          styleId: styleMap['pastel'],
+        },
+      },
+      update: {},
+      create: {
+        keyboardThemeId: sakuraTheme.id,
+        styleId: styleMap['pastel'],
       },
     });
   }

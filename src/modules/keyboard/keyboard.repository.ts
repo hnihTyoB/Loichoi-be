@@ -43,6 +43,29 @@ const publicThemeSelect = {
       },
     },
   },
+  colors: {
+    select: {
+      color: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          hex: true,
+        },
+      },
+    },
+  },
+  styles: {
+    select: {
+      style: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+        },
+      },
+    },
+  },
 } satisfies Prisma.KeyboardThemeSelect;
 
 export class KeyboardRepository {
@@ -52,6 +75,11 @@ export class KeyboardRepository {
       limit = 20,
       search,
       category,
+      categories,
+      color,
+      colors,
+      style,
+      styles,
       platform,
       accessLevel,
       isFeatured,
@@ -59,16 +87,66 @@ export class KeyboardRepository {
       sort = 'LATEST',
     } = query;
 
+    const categorySlugs: string[] = [];
+    if (categories) {
+      categorySlugs.push(...categories.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean));
+    } else if (category) {
+      categorySlugs.push(category.trim().toLowerCase());
+    }
+
+    const colorSlugs: string[] = [];
+    if (colors) {
+      colorSlugs.push(...colors.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean));
+    } else if (color) {
+      colorSlugs.push(color.trim().toLowerCase());
+    }
+
+    const styleSlugs: string[] = [];
+    if (styles) {
+      styleSlugs.push(...styles.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean));
+    } else if (style) {
+      styleSlugs.push(style.trim().toLowerCase());
+    }
+
     const where: Prisma.KeyboardThemeWhereInput = {
       status: 'PUBLISHED',
-      ...(search ? { name: { contains: search, mode: 'insensitive' } } : {}),
-      ...(category
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: 'insensitive' } },
+              { description: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+      ...(categorySlugs.length > 0
         ? {
             categories: {
               some: {
                 category: {
-                  slug: category,
+                  slug: { in: categorySlugs },
                   isActive: true,
+                },
+              },
+            },
+          }
+        : {}),
+      ...(colorSlugs.length > 0
+        ? {
+            colors: {
+              some: {
+                color: {
+                  slug: { in: colorSlugs },
+                },
+              },
+            },
+          }
+        : {}),
+      ...(styleSlugs.length > 0
+        ? {
+            styles: {
+              some: {
+                style: {
+                  slug: { in: styleSlugs },
                 },
               },
             },
@@ -148,6 +226,8 @@ export class KeyboardRepository {
       publishedAt: item.publishedAt,
       author: item.author,
       categories: item.categories.map((c) => c.category),
+      colors: item.colors.map((c) => c.color),
+      styles: item.styles.map((s) => s.style),
     }));
 
     return {
@@ -197,6 +277,30 @@ export class KeyboardRepository {
             },
           },
         },
+        colors: {
+          select: {
+            color: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                hex: true,
+              },
+            },
+          },
+        },
+        styles: {
+          select: {
+            style: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                description: true,
+              },
+            },
+          },
+        },
         previewImages: {
           select: {
             id: true,
@@ -242,6 +346,8 @@ export class KeyboardRepository {
       publishedAt: item.publishedAt,
       author: item.author,
       categories: item.categories.map((c) => c.category),
+      colors: item.colors.map((c) => c.color),
+      styles: item.styles.map((s) => s.style),
       previewImages: item.previewImages,
     };
   }
@@ -253,15 +359,26 @@ export class KeyboardRepository {
       search,
       status,
       categoryId,
+      colorId,
+      styleId,
       platform,
       isFeatured,
       sort = 'createdAt_desc',
     } = query;
 
     const where: Prisma.KeyboardThemeWhereInput = {
-      ...(search ? { name: { contains: search, mode: 'insensitive' } } : {}),
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: 'insensitive' } },
+              { description: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
       ...(status ? { status } : {}),
       ...(categoryId ? { categories: { some: { categoryId } } } : {}),
+      ...(colorId ? { colors: { some: { colorId } } } : {}),
+      ...(styleId ? { styles: { some: { styleId } } } : {}),
       ...(platform ? { platform } : {}),
       ...(isFeatured !== undefined ? { isFeatured } : {}),
     };
@@ -287,6 +404,16 @@ export class KeyboardRepository {
               category: true,
             },
           },
+          colors: {
+            include: {
+              color: true,
+            },
+          },
+          styles: {
+            include: {
+              style: true,
+            },
+          },
         },
       }),
       prisma.keyboardTheme.count({ where }),
@@ -308,6 +435,10 @@ export class KeyboardRepository {
       publishedAt: item.publishedAt,
       author: item.author,
       categoryNames: item.categories.map((c) => c.category.name),
+      colorNames: item.colors.map((c) => c.color.name),
+      styleNames: item.styles.map((s) => s.style.name),
+      colors: item.colors.map((c) => c.color),
+      styles: item.styles.map((s) => s.style),
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
     }));
@@ -331,6 +462,16 @@ export class KeyboardRepository {
         categories: {
           include: {
             category: true,
+          },
+        },
+        colors: {
+          include: {
+            color: true,
+          },
+        },
+        styles: {
+          include: {
+            style: true,
           },
         },
         previewImages: {
@@ -363,6 +504,8 @@ export class KeyboardRepository {
         slug: c.category.slug,
         isActive: c.category.isActive,
       })),
+      colors: item.colors.map((c) => c.color),
+      styles: item.styles.map((s) => s.style),
       previewImages: item.previewImages,
       createdBy: item.createdBy,
       updatedBy: item.updatedBy,
@@ -376,6 +519,16 @@ export class KeyboardRepository {
       where: { id },
       include: {
         author: { select: authorSelect },
+        colors: {
+          include: {
+            color: true,
+          },
+        },
+        styles: {
+          include: {
+            style: true,
+          },
+        },
         previewImages: {
           orderBy: { position: 'asc' },
         },
@@ -414,6 +567,22 @@ export class KeyboardRepository {
               categoryId,
             })),
           },
+          colors:
+            data.colorIds && data.colorIds.length > 0
+              ? {
+                  create: data.colorIds.map((colorId) => ({
+                    colorId,
+                  })),
+                }
+              : undefined,
+          styles:
+            data.styleIds && data.styleIds.length > 0
+              ? {
+                  create: data.styleIds.map((styleId) => ({
+                    styleId,
+                  })),
+                }
+              : undefined,
           previewImages:
             data.previewImages && data.previewImages.length > 0
               ? {
@@ -451,7 +620,37 @@ export class KeyboardRepository {
         }
       }
 
-      // 2. Cập nhật previewImages nếu có truyền
+      // 2. Cập nhật colors nếu có truyền
+      if (data.colorIds !== undefined) {
+        await tx.keyboardColor.deleteMany({
+          where: { keyboardThemeId: id },
+        });
+        if (data.colorIds.length > 0) {
+          await tx.keyboardColor.createMany({
+            data: data.colorIds.map((colorId) => ({
+              keyboardThemeId: id,
+              colorId,
+            })),
+          });
+        }
+      }
+
+      // 3. Cập nhật styles nếu có truyền
+      if (data.styleIds !== undefined) {
+        await tx.keyboardStyle.deleteMany({
+          where: { keyboardThemeId: id },
+        });
+        if (data.styleIds.length > 0) {
+          await tx.keyboardStyle.createMany({
+            data: data.styleIds.map((styleId) => ({
+              keyboardThemeId: id,
+              styleId,
+            })),
+          });
+        }
+      }
+
+      // 4. Cập nhật previewImages nếu có truyền
       if (data.previewImages !== undefined) {
         await tx.keyboardImage.deleteMany({
           where: { keyboardThemeId: id },
@@ -468,7 +667,7 @@ export class KeyboardRepository {
         }
       }
 
-      // 3. Cập nhật thông tin theme
+      // 5. Cập nhật thông tin theme
       const updatedTheme = await tx.keyboardTheme.update({
         where: { id },
         data: {
@@ -609,6 +808,8 @@ export class KeyboardRepository {
       publishedAt: l.theme.publishedAt,
       author: l.theme.author,
       categories: l.theme.categories.map((c) => c.category),
+      colors: l.theme.colors.map((c) => c.color),
+      styles: l.theme.styles.map((s) => s.style),
       likedAt: l.createdAt,
     }));
 

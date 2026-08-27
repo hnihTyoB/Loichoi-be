@@ -138,8 +138,8 @@
     - Chặn phát hành (PUBLISHED) qua PATCH khi theme không có danh mục hợp lệ.
   - **Feature Flags Runtime Wiring**:
     - Đã gắn `requireFeatureFlag(FEATURE_FLAGS.DISCORD_LOGIN_ENABLED)` trên Discord auth route; kiểm tra `FEATURE_FLAGS.DISCORD_GATED_DOWNLOAD` và `FEATURE_FLAGS.THEME_ANNOUNCEMENT_WEBHOOK` trong `KeyboardService`.
-  - **HTTPS Enforcement for Google Drive**:
-    - Ép buộc giao thức `https://` và allowlist chính xác các domain Google Drive hợp lệ.
+- **HTTPS Enforcement for Theme Download URLs**:
+    - Ép buộc giao thức `https://` và allowlist chính xác các domain Google Drive hoặc Discord hợp lệ; chặn domain giả mạo gần giống.
 - **KeyboardHub Platform Transformation (2026-08-26)**:
   - **Themes System (`/api/v1/keyboards`)**:
     - Hỗ trợ đầy đủ tương tác Thả tim (`POST /:slug/like`), danh sách theme đã thích (`GET /me/liked`), và phân loại theo Creator, Platform (iOS/Android/Both), Access Level (Free/Premium/Discord Member/Role).

@@ -357,6 +357,8 @@ model KeyboardTheme {
   downloads              Download[]
   previewImages          KeyboardImage[]
   categories             KeyboardThemeCategory[]
+  colors                 KeyboardColor[]
+  styles                 KeyboardStyle[]
   author                 User?                   @relation("AuthoredThemes", fields: [createdBy], references: [id])
   likes                  KeyboardLike[]
   collectionItems        CollectionItem[]
@@ -415,6 +417,58 @@ model KeyboardThemeCategory {
   @@index([keyboardThemeId])
   @@index([categoryId])
   @@map("keyboard_theme_categories")
+}
+
+model Color {
+  id        String          @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String          @unique
+  hex       String
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+  themes    KeyboardColor[]
+
+  @@map("colors")
+}
+
+model KeyboardColor {
+  id              String        @id @default(uuid()) @db.Uuid
+  keyboardThemeId String        @map("keyboard_theme_id") @db.Uuid
+  colorId         String        @map("color_id") @db.Uuid
+  createdAt       DateTime      @default(now()) @map("created_at")
+  color           Color         @relation(fields: [colorId], references: [id], onDelete: Cascade)
+  theme           KeyboardTheme @relation(fields: [keyboardThemeId], references: [id], onDelete: Cascade)
+
+  @@unique([keyboardThemeId, colorId])
+  @@index([keyboardThemeId])
+  @@index([colorId])
+  @@map("keyboard_colors")
+}
+
+model Style {
+  id          String          @id @default(uuid()) @db.Uuid
+  name        String
+  slug        String          @unique
+  description String?
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  themes      KeyboardStyle[]
+
+  @@map("styles")
+}
+
+model KeyboardStyle {
+  id              String        @id @default(uuid()) @db.Uuid
+  keyboardThemeId String        @map("keyboard_theme_id") @db.Uuid
+  styleId         String        @map("style_id") @db.Uuid
+  createdAt       DateTime      @default(now()) @map("created_at")
+  style           Style         @relation(fields: [styleId], references: [id], onDelete: Cascade)
+  theme           KeyboardTheme @relation(fields: [keyboardThemeId], references: [id], onDelete: Cascade)
+
+  @@unique([keyboardThemeId, styleId])
+  @@index([keyboardThemeId])
+  @@index([styleId])
+  @@map("keyboard_styles")
 }
 
 model Download {

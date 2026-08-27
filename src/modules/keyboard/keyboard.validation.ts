@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { isGoogleDriveUrl } from '../../common/constants/keyboard.constant';
+import { isThemeDownloadUrl } from '../../common/constants/keyboard.constant';
 import { isPublicHttpUrl } from '../../common/helpers/url.helper';
 
 export const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -33,9 +33,9 @@ export const createKeyboardSchema = z
       }),
     driveUrl: z
       .string()
-      .url('URL Google Drive không hợp lệ')
-      .refine((url) => isGoogleDriveUrl(url), {
-        message: 'URL tải file phải là đường dẫn Google Drive hợp lệ (drive.google.com / docs.google.com)',
+      .url('URL tải xuống không hợp lệ')
+      .refine((url) => isThemeDownloadUrl(url), {
+        message: 'URL tải file phải thuộc Google Drive hoặc Discord và sử dụng HTTPS',
       }),
     platform: z.enum(['IOS', 'ANDROID', 'BOTH'], {
       errorMap: () => ({ message: 'Nền tảng phải là IOS, ANDROID hoặc BOTH' }),
@@ -44,6 +44,8 @@ export const createKeyboardSchema = z
     accessLevel: z.enum(['FREE', 'PREMIUM', 'DISCORD_MEMBER', 'DISCORD_ROLE']).optional().default('FREE'),
     requiredDiscordRoleIds: z.array(z.string().trim().min(1, 'Role ID không được rỗng')).optional().default([]),
     categoryIds: z.array(z.string().uuid('Category ID phải là UUID hợp lệ')),
+    colorIds: z.array(z.string().uuid('Color ID phải là UUID hợp lệ')).optional().default([]),
+    styleIds: z.array(z.string().uuid('Style ID phải là UUID hợp lệ')).optional().default([]),
     isFeatured: z.boolean().optional().default(false),
     previewImages: z.array(previewImageItemSchema).max(10, 'Tối đa 10 ảnh xem trước').optional().default([]),
   })
@@ -79,9 +81,9 @@ export const updateKeyboardSchema = z
       .optional(),
     driveUrl: z
       .string()
-      .url('URL Google Drive không hợp lệ')
-      .refine((url) => isGoogleDriveUrl(url), {
-        message: 'URL tải file phải là đường dẫn Google Drive hợp lệ (drive.google.com / docs.google.com)',
+      .url('URL tải xuống không hợp lệ')
+      .refine((url) => isThemeDownloadUrl(url), {
+        message: 'URL tải file phải thuộc Google Drive hoặc Discord và sử dụng HTTPS',
       })
       .optional(),
     platform: z.enum(['IOS', 'ANDROID', 'BOTH']).optional(),
@@ -89,6 +91,8 @@ export const updateKeyboardSchema = z
     accessLevel: z.enum(['FREE', 'PREMIUM', 'DISCORD_MEMBER', 'DISCORD_ROLE']).optional(),
     requiredDiscordRoleIds: z.array(z.string().trim().min(1, 'Role ID không được rỗng')).optional(),
     categoryIds: z.array(z.string().uuid('Category ID phải là UUID hợp lệ')).optional(),
+    colorIds: z.array(z.string().uuid('Color ID phải là UUID hợp lệ')).optional(),
+    styleIds: z.array(z.string().uuid('Style ID phải là UUID hợp lệ')).optional(),
     isFeatured: z.boolean().optional(),
     previewImages: z.array(previewImageItemSchema).max(10, 'Tối đa 10 ảnh xem trước').optional(),
   })
@@ -123,6 +127,11 @@ export const keyboardPublicQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
   search: z.string().trim().optional(),
   category: z.string().trim().optional(),
+  categories: z.string().trim().optional(),
+  color: z.string().trim().optional(),
+  colors: z.string().trim().optional(),
+  style: z.string().trim().optional(),
+  styles: z.string().trim().optional(),
   platform: z.enum(['IOS', 'ANDROID', 'BOTH']).optional(),
   accessLevel: z.enum(['FREE', 'PREMIUM', 'DISCORD_MEMBER', 'DISCORD_ROLE']).optional(),
   isFeatured: z
@@ -139,6 +148,8 @@ export const keyboardManagementQuerySchema = z.object({
   search: z.string().trim().optional(),
   status: z.enum(['DRAFT', 'PUBLISHED', 'HIDDEN']).optional(),
   categoryId: z.string().uuid().optional(),
+  colorId: z.string().uuid().optional(),
+  styleId: z.string().uuid().optional(),
   platform: z.enum(['IOS', 'ANDROID', 'BOTH']).optional(),
   isFeatured: z
     .enum(['true', 'false'])
@@ -167,4 +178,3 @@ export const getThemeBatchImageUploadUrlsSchema = z.object({
     .min(1, 'Cần ít nhất 1 file để yêu cầu upload URL')
     .max(15, 'Tối đa 15 file mỗi lần yêu cầu upload URL'),
 });
-

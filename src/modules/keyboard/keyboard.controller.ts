@@ -193,10 +193,10 @@ export class KeyboardController {
         userAgent: req.headers['user-agent'],
       };
 
-      const driveUrl = await this.service.processDownload(slug, user, metadata);
+      const downloadUrl = await this.service.processDownload(slug, user, metadata);
 
-      // Chuyển hướng 302 trực tiếp sang Google Drive
-      res.redirect(302, driveUrl);
+      // Chuyển hướng 302 trực tiếp tới nguồn tải đã được allowlist.
+      res.redirect(302, downloadUrl);
     } catch (error) {
       next(error);
     }

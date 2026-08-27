@@ -1,6 +1,8 @@
 import crypto from 'crypto';
 import { KeyboardRepository } from './keyboard.repository';
 import { CategoryRepository } from '../category/category.repository';
+import { ColorRepository } from '../color/color.repository';
+import { StyleRepository } from '../style/style.repository';
 import { discordBotService, DiscordBotService } from '../auth/discord-bot.service';
 import { systemConfigService, SystemConfigService } from '../system-config/system-config.service';
 import { R2Service } from '../../common/services/r2.service';
@@ -28,6 +30,8 @@ import { AUDIT_ACTION, AUDIT_TARGET_TYPE } from '../../common/constants/audit-lo
 export class KeyboardService {
   private readonly repository = new KeyboardRepository();
   private readonly categoryRepository = new CategoryRepository();
+  private readonly colorRepository = new ColorRepository();
+  private readonly styleRepository = new StyleRepository();
   private readonly discordBotService: DiscordBotService = discordBotService;
   private readonly systemConfigService: SystemConfigService = systemConfigService;
   private readonly r2Service = new R2Service();
@@ -120,6 +124,30 @@ export class KeyboardService {
       }
     }
 
+    // Xác thực màu sắc nếu có truyền
+    if (data.colorIds && data.colorIds.length > 0) {
+      const existingColors = await this.colorRepository.findByIds(data.colorIds);
+      if (existingColors.length !== data.colorIds.length) {
+        throw new AppError(
+          'Một hoặc nhiều màu sắc được gán không tồn tại',
+          400,
+          ERROR_CODE.COLOR_NOT_FOUND,
+        );
+      }
+    }
+
+    // Xác thực phong cách (style) nếu có truyền
+    if (data.styleIds && data.styleIds.length > 0) {
+      const existingStyles = await this.styleRepository.findByIds(data.styleIds);
+      if (existingStyles.length !== data.styleIds.length) {
+        throw new AppError(
+          'Một hoặc nhiều phong cách được gán không tồn tại',
+          400,
+          ERROR_CODE.STYLE_NOT_FOUND,
+        );
+      }
+    }
+
     const publishedAt = data.status === 'PUBLISHED' ? new Date() : null;
 
     const theme = await this.repository.create({
@@ -197,6 +225,30 @@ export class KeyboardService {
           'Một hoặc nhiều danh mục được gán không tồn tại hoặc đang bị vô hiệu hóa',
           400,
           ERROR_CODE.CATEGORY_INACTIVE,
+        );
+      }
+    }
+
+    // Kiểm tra màu sắc nếu có cập nhật
+    if (data.colorIds !== undefined && data.colorIds.length > 0) {
+      const existingColors = await this.colorRepository.findByIds(data.colorIds);
+      if (existingColors.length !== data.colorIds.length) {
+        throw new AppError(
+          'Một hoặc nhiều màu sắc được gán không tồn tại',
+          400,
+          ERROR_CODE.COLOR_NOT_FOUND,
+        );
+      }
+    }
+
+    // Kiểm tra phong cách (style) nếu có cập nhật
+    if (data.styleIds !== undefined && data.styleIds.length > 0) {
+      const existingStyles = await this.styleRepository.findByIds(data.styleIds);
+      if (existingStyles.length !== data.styleIds.length) {
+        throw new AppError(
+          'Một hoặc nhiều phong cách được gán không tồn tại',
+          400,
+          ERROR_CODE.STYLE_NOT_FOUND,
         );
       }
     }

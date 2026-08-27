@@ -7,6 +7,20 @@ export interface CreatorSummaryDto {
   avatarUrl: string | null;
 }
 
+export interface KeyboardColorSummaryDto {
+  id: string;
+  name: string;
+  slug: string;
+  hex: string;
+}
+
+export interface KeyboardStyleSummaryDto {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+}
+
 export interface KeyboardListItemDto {
   id: string;
   name: string;
@@ -26,6 +40,8 @@ export interface KeyboardListItemDto {
     name: string;
     slug: string;
   }>;
+  colors: KeyboardColorSummaryDto[];
+  styles: KeyboardStyleSummaryDto[];
 }
 
 export interface KeyboardPublicDetailDto {
@@ -48,6 +64,8 @@ export interface KeyboardPublicDetailDto {
     name: string;
     slug: string;
   }>;
+  colors: KeyboardColorSummaryDto[];
+  styles: KeyboardStyleSummaryDto[];
   previewImages: Array<{
     id: string;
     url: string;
@@ -72,6 +90,10 @@ export interface KeyboardManagementListItemDto {
   publishedAt: Date | string | null;
   author: CreatorSummaryDto | null;
   categoryNames: string[];
+  colorNames: string[];
+  styleNames: string[];
+  colors: KeyboardColorSummaryDto[];
+  styles: KeyboardStyleSummaryDto[];
   createdAt: Date | string;
   updatedAt: Date | string;
 }
@@ -98,6 +120,8 @@ export interface KeyboardManagementDetailDto {
     slug: string;
     isActive: boolean;
   }>;
+  colors: KeyboardColorSummaryDto[];
+  styles: KeyboardStyleSummaryDto[];
   previewImages: Array<{
     id: string;
     url: string;
@@ -128,6 +152,8 @@ export interface CreateKeyboardDto {
   accessLevel?: ThemeAccessLevel;
   requiredDiscordRoleIds?: string[];
   categoryIds: string[];
+  colorIds?: string[];
+  styleIds?: string[];
   isFeatured?: boolean;
   previewImages?: CreateKeyboardPreviewImagePayload[];
 }
@@ -143,6 +169,8 @@ export interface UpdateKeyboardDto {
   accessLevel?: ThemeAccessLevel;
   requiredDiscordRoleIds?: string[];
   categoryIds?: string[];
+  colorIds?: string[];
+  styleIds?: string[];
   isFeatured?: boolean;
   previewImages?: CreateKeyboardPreviewImagePayload[];
 }
@@ -152,6 +180,11 @@ export interface KeyboardQueryDto {
   limit?: number;
   search?: string;
   category?: string;
+  categories?: string;
+  color?: string;
+  colors?: string;
+  style?: string;
+  styles?: string;
   platform?: KeyboardPlatform;
   accessLevel?: ThemeAccessLevel;
   isFeatured?: boolean;
@@ -165,6 +198,8 @@ export interface KeyboardManagementQueryDto {
   search?: string;
   status?: KeyboardStatus;
   categoryId?: string;
+  colorId?: string;
+  styleId?: string;
   platform?: KeyboardPlatform;
   isFeatured?: boolean;
   sort?: string;
@@ -192,4 +227,3 @@ export interface GetThemeBatchImageUploadUrlsDto {
 export interface GetThemeBatchImageUploadUrlsResponseDto {
   items: GetThemeImageUploadUrlResponseDto[];
 }
-

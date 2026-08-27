@@ -9,6 +9,8 @@ import { registerIntegrationOpenApi } from '../modules/integration/integration.o
 import { registerSystemConfigOpenApi } from '../modules/system-config/system-config.openapi';
 import { registerCronOpenApi } from '../modules/cron/cron.openapi';
 import { registerCategoryOpenApi } from '../modules/category/category.openapi';
+import { registerColorOpenApi } from '../modules/color/color.openapi';
+import { registerStyleOpenApi } from '../modules/style/style.openapi';
 import { registerKeyboardOpenApi } from '../modules/keyboard/keyboard.openapi';
 import { registerCreatorOpenApi } from '../modules/creator/creator.openapi';
 import { registerCollectionOpenApi } from '../modules/collection/collection.openapi';
@@ -25,6 +27,8 @@ registerIntegrationOpenApi();
 registerSystemConfigOpenApi();
 registerCronOpenApi();
 registerCategoryOpenApi();
+registerColorOpenApi();
+registerStyleOpenApi();
 registerKeyboardOpenApi();
 registerCreatorOpenApi();
 registerCollectionOpenApi();

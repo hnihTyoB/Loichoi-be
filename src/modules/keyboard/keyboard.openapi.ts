@@ -18,6 +18,20 @@ const CreatorSummarySchema = z.object({
   avatarUrl: z.string().url().nullable().openapi({ example: 'https://example.com/avatar.jpg' }),
 });
 
+const ColorSummarySchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().openapi({ example: 'Pink' }),
+  slug: z.string().openapi({ example: 'pink' }),
+  hex: z.string().openapi({ example: '#FFB7C5' }),
+});
+
+const StyleSummarySchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().openapi({ example: 'Cyberpunk' }),
+  slug: z.string().openapi({ example: 'cyberpunk' }),
+  description: z.string().nullable().optional().openapi({ example: 'Futuristic neon-inspired visual style' }),
+});
+
 
 export function registerKeyboardOpenApi(): void {
   openapiRegistry.register('CreateKeyboardRequest', createKeyboardSchema);
@@ -29,7 +43,7 @@ export function registerKeyboardOpenApi(): void {
     path: '/keyboards',
     tags: ['Keyboard Themes'],
     summary: 'Danh sách giao diện bàn phím đã phát hành (Public)',
-    description: 'Tìm kiếm, lọc theo danh mục / nền tảng / tác giả / mức giá và phân trang cho các theme PUBLISHED.',
+    description: 'Tìm kiếm, lọc theo danh mục / màu sắc (color/colors) / phong cách (style/styles) / nền tảng / tác giả / mức giá và phân trang cho các theme PUBLISHED.',
     request: { query: keyboardPublicQuerySchema },
     responses: {
       200: {
@@ -60,6 +74,8 @@ export function registerKeyboardOpenApi(): void {
                       slug: z.string(),
                     }),
                   ),
+                  colors: z.array(ColorSummarySchema),
+                  styles: z.array(StyleSummarySchema),
                 }),
               ),
               meta: PaginationMetaSchema,
@@ -98,6 +114,15 @@ export function registerKeyboardOpenApi(): void {
                   isLiked: z.boolean().openapi({ example: true }),
                   publishedAt: z.string().datetime().nullable(),
                   author: CreatorSummarySchema.nullable(),
+                  categories: z.array(
+                    z.object({
+                      id: z.string().uuid(),
+                      name: z.string(),
+                      slug: z.string(),
+                    }),
+                  ),
+                  colors: z.array(ColorSummarySchema),
+                  styles: z.array(StyleSummarySchema),
                   likedAt: z.string().datetime(),
                 }),
               ),
@@ -142,7 +167,7 @@ export function registerKeyboardOpenApi(): void {
     path: '/keyboards/{slug}',
     tags: ['Keyboard Themes'],
     summary: 'Xem chi tiết giao diện bàn phím theo slug (Public)',
-    description: 'Lấy thông tin chi tiết của theme PUBLISHED kèm cover, preview images, author profile và lượt like.',
+    description: 'Lấy thông tin chi tiết của theme PUBLISHED kèm cover, preview images, colors, styles, author profile và lượt like.',
     request: { params: keyboardSlugParamSchema },
     responses: {
       200: {
@@ -173,6 +198,8 @@ export function registerKeyboardOpenApi(): void {
                     slug: z.string(),
                   }),
                 ),
+                colors: z.array(ColorSummarySchema),
+                styles: z.array(StyleSummarySchema),
                 previewImages: z.array(
                   z.object({
                     id: z.string().uuid(),
@@ -197,14 +224,14 @@ export function registerKeyboardOpenApi(): void {
     method: 'post',
     path: '/keyboards/{slug}/download',
     tags: ['Keyboard Themes'],
-    summary: 'Yêu cầu tải theme bàn phím (Yêu cầu đăng nhập, Discord Gated, Redirect 302 sang Google Drive)',
+    summary: 'Yêu cầu tải theme bàn phím (Yêu cầu đăng nhập, Discord Gated, Redirect 302 tới nguồn tải)',
     description:
-      'Xác thực tài khoản người dùng, kiểm tra điều kiện Discord Server Member / Role (nếu theme yêu cầu), ghi nhận lịch sử Download, tăng bộ đếm lượt tải và phản hồi HTTP 302 Found chuyển hướng tới Google Drive.',
+      'Xác thực tài khoản người dùng, kiểm tra điều kiện Discord Server Member / Role (nếu theme yêu cầu), ghi nhận lịch sử Download, tăng bộ đếm lượt tải và phản hồi HTTP 302 Found chuyển hướng tới Google Drive hoặc Discord.',
     security: [{ BearerAuth: [] }],
     request: { params: keyboardSlugParamSchema },
     responses: {
       302: {
-        description: 'Chuyển hướng thành công tới Google Drive URL (Header Location: https://drive.google.com/...)',
+        description: 'Chuyển hướng thành công tới URL Google Drive hoặc Discord đã được allowlist trong Header Location',
       },
       401: {
         description: 'Chưa đăng nhập hoặc token không hợp lệ',
@@ -253,6 +280,10 @@ export function registerKeyboardOpenApi(): void {
                   publishedAt: z.string().datetime().nullable(),
                   author: CreatorSummarySchema.nullable(),
                   categoryNames: z.array(z.string()),
+                  colorNames: z.array(z.string()),
+                  styleNames: z.array(z.string()),
+                  colors: z.array(ColorSummarySchema),
+                  styles: z.array(StyleSummarySchema),
                   createdAt: z.string().datetime(),
                   updatedAt: z.string().datetime(),
                 }),
@@ -304,6 +335,8 @@ export function registerKeyboardOpenApi(): void {
                     isActive: z.boolean(),
                   }),
                 ),
+                colors: z.array(ColorSummarySchema),
+                styles: z.array(StyleSummarySchema),
                 previewImages: z.array(
                   z.object({
                     id: z.string().uuid(),
@@ -504,5 +537,4 @@ export function registerKeyboardOpenApi(): void {
     },
   });
 }
-
 

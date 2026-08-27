@@ -54,6 +54,16 @@ export const THEME_ACCESS_LEVEL = {
 
 export type ThemeAccessLevel = keyof typeof THEME_ACCESS_LEVEL;
 
+const DISCORD_DOWNLOAD_HOSTS = new Set([
+  'discord.com',
+  'www.discord.com',
+  'canary.discord.com',
+  'ptb.discord.com',
+  'discord.gg',
+  'cdn.discordapp.com',
+  'media.discordapp.net',
+]);
+
 export function isGoogleDriveUrl(urlString: string): boolean {
   try {
     const parsed = new URL(urlString);
@@ -70,3 +80,15 @@ export function isGoogleDriveUrl(urlString: string): boolean {
   }
 }
 
+export function isDiscordUrl(urlString: string): boolean {
+  try {
+    const parsed = new URL(urlString);
+    return parsed.protocol === 'https:' && DISCORD_DOWNLOAD_HOSTS.has(parsed.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
+export function isThemeDownloadUrl(urlString: string): boolean {
+  return isGoogleDriveUrl(urlString) || isDiscordUrl(urlString);
+}

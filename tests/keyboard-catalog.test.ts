@@ -11,7 +11,11 @@ import {
   keyboardPublicQuerySchema,
 } from '../src/modules/keyboard/keyboard.validation';
 import { toSlug } from '../src/common/helpers/slug.helper';
-import { isGoogleDriveUrl } from '../src/common/constants/keyboard.constant';
+import {
+  isDiscordUrl,
+  isGoogleDriveUrl,
+  isThemeDownloadUrl,
+} from '../src/common/constants/keyboard.constant';
 import { CategoryService } from '../src/modules/category/category.service';
 import { KeyboardService } from '../src/modules/keyboard/keyboard.service';
 import { AppError } from '../src/common/errors/app-error';
@@ -29,6 +33,18 @@ describe('Category & Keyboard Validation Schemas', () => {
     assert.equal(isGoogleDriveUrl('https://docs.google.com/uc?id=12345&export=download'), true);
     assert.equal(isGoogleDriveUrl('https://malicious-site.com/file.zip'), false);
     assert.equal(isGoogleDriveUrl('not-a-url'), false);
+  });
+
+  it('should validate Discord download URLs without accepting spoofed domains', () => {
+    assert.equal(isDiscordUrl('https://discord.com/channels/123/456/789'), true);
+    assert.equal(isDiscordUrl('https://cdn.discordapp.com/attachments/123/456/theme.zip'), true);
+    assert.equal(isDiscordUrl('https://discord.gg/keyboard-themes'), true);
+    assert.equal(isDiscordUrl('http://discord.com/channels/123/456'), false);
+    assert.equal(isDiscordUrl('https://discord.com.evil.example/channels/123/456'), false);
+    assert.equal(isDiscordUrl('https://discord.com@evil.example/channels/123/456'), false);
+    assert.equal(isThemeDownloadUrl('https://docs.google.com/uc?id=12345&export=download'), true);
+    assert.equal(isThemeDownloadUrl('https://discord.com/channels/123/456/789'), true);
+    assert.equal(isThemeDownloadUrl('https://example.com/theme.zip'), false);
   });
 
   it('should validate createCategorySchema', () => {
@@ -56,6 +72,12 @@ describe('Category & Keyboard Validation Schemas', () => {
     };
     const parsedDraft = createKeyboardSchema.parse(validDraft);
     assert.equal(parsedDraft.name, 'Sakura Night');
+
+    const parsedDiscordDraft = createKeyboardSchema.parse({
+      ...validDraft,
+      driveUrl: 'https://discord.com/channels/123/456/789',
+    });
+    assert.equal(parsedDiscordDraft.driveUrl, 'https://discord.com/channels/123/456/789');
 
     const publishedWithoutCategory = {
       name: 'Sakura Night',
