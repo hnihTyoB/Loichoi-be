@@ -106,41 +106,36 @@ export class DiscordBotService {
 
     try {
       const themeUrl = `${envConfig.frontendUrl}/keyboards/${theme.slug}`;
-      const accessBadge =
-        theme.accessLevel === 'FREE'
-          ? '🟢 Miễn phí cho mọi người'
-          : theme.accessLevel === 'DISCORD_MEMBER'
-            ? '🔵 Dành riêng cho Thành viên Discord'
-            : '⭐ Dành riêng cho Server Booster / VIP';
+      const logoUrl = `${envConfig.frontendUrl}/images/logos/logo_loichoi.png`;
 
       const payload = {
-        username: 'Keyboard Theme Bot',
-        avatar_url: 'https://cdn.discordapp.com/embed/avatars/0.png',
+        username: 'Loichoi Keyboard',
+        avatar_url: logoUrl,
         embeds: [
           {
-            title: `✨ Ra mắt Giao diện Bàn phím mới: ${theme.name}`,
+            title: `Ra mắt Giao diện Bàn phím mới: ${theme.name}`,
             url: themeUrl,
             description: theme.description || 'Giao diện bàn phím mới cực đẹp đã sẵn sàng để tải về và trải nghiệm ngay!',
             color: 0x5865f2, // Discord Blurple
-            fields: [
-              {
-                name: '📱 Nền tảng hỗ trợ',
-                value: `\`${theme.platform}\``,
-                inline: true,
-              },
-              {
-                name: '🔓 Quyền lợi tải',
-                value: accessBadge,
-                inline: true,
-              },
-            ],
             image: {
               url: theme.coverUrl,
             },
             footer: {
-              text: 'Keyboard Theme Library • Bấm vào tiêu đề để xem chi tiết và tải về',
+              text: 'Loichoi Keyboard Theme Library',
             },
             timestamp: new Date().toISOString(),
+          },
+        ],
+        components: [
+          {
+            type: 1, // Action Row
+            components: [
+              {
+                type: 2, // Button
+                style: 5, // Link Button
+                label: 'Xem & Tải Bàn Phím',
+                url: themeUrl,              },
+            ],
           },
         ],
       };
