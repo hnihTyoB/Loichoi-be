@@ -111,15 +111,21 @@ export class DiscordBotService {
       const logoUrl = `${envConfig.frontendUrl}/images/logos/logo_loichoi.png`;
 
       const embed = {
-        title: `Ra mắt Giao diện Bàn phím mới: ${theme.name}`,
+        author: {
+          name: 'Loichoi Keyboard',
+          icon_url: logoUrl,
+          url: envConfig.frontendUrl,
+        },
+        title: `New Keyboard Theme: ${theme.name}`,
         url: themeUrl,
-        description: theme.description || 'Giao diện bàn phím mới cực đẹp đã sẵn sàng để tải về và trải nghiệm ngay!',
+        description: theme.description || 'New keyboard theme is ready to download and experience now!',
         color: 0x5865f2, // Discord Blurple
         image: {
           url: theme.coverUrl,
         },
         footer: {
           text: 'Loichoi Keyboard Theme Library',
+          icon_url: logoUrl,
         },
         timestamp: new Date().toISOString(),
       };
