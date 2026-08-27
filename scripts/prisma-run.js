@@ -30,6 +30,10 @@ if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL = `postgresql://${user}:${password}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || '5432'}/${process.env.DB_NAME || 'template_db'}?schema=public`;
 }
 
+if (!process.env.DIRECT_URL && process.env.DATABASE_URL) {
+  process.env.DIRECT_URL = process.env.DATABASE_URL;
+}
+
 const args = process.argv.slice(2);
 let prismaBin;
 try {
