@@ -4,9 +4,14 @@ export interface CronJobItemDto {
   name: CronJobName;
   cron: string;
   description: string;
+  isEnabled: boolean;
   nextRun?: string;
   lastRun?: string;
   lastStatus?: string;
+}
+
+export interface ToggleCronJobDto {
+  enabled: boolean;
 }
 
 export interface TriggerCronJobDto {

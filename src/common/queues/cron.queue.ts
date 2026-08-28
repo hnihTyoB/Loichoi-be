@@ -78,11 +78,16 @@ export class CronQueueService {
   /**
    * Đăng ký tất cả các Repeatable Cron Jobs theo biểu thức cron chuẩn
    */
-  async registerSchedules(): Promise<void> {
+  async registerSchedules(disabledJobs: string[] = []): Promise<void> {
     if (!this.queue || !this.isRedisAvailable) return;
 
     try {
       for (const [jobName, config] of Object.entries(DEFAULT_CRON_SCHEDULES)) {
+        if (disabledJobs.includes(jobName)) {
+          await this.queue.removeJobScheduler(jobName).catch(() => {});
+          continue;
+        }
+
         await this.queue.upsertJobScheduler(
           jobName,
           { pattern: config.cron },
@@ -98,6 +103,46 @@ export class CronQueueService {
       console.log('[CronQueue] Repeatable cron jobs successfully registered');
     } catch (err: any) {
       console.warn('[CronQueue] Failed to register repeatable schedules:', err.message);
+    }
+  }
+
+  /**
+   * Kích hoạt lại lịch trình lặp lại cho một cron job
+   */
+  async enableJobScheduler(jobName: CronJobName): Promise<void> {
+    if (!this.queue || !this.isRedisAvailable) return;
+    const config = DEFAULT_CRON_SCHEDULES[jobName];
+    if (!config) return;
+
+    try {
+      await this.queue.upsertJobScheduler(
+        jobName,
+        { pattern: config.cron },
+        {
+          name: jobName,
+          data: {
+            jobName,
+            triggeredAt: new Date().toISOString(),
+          },
+        },
+      );
+      console.log(`[CronQueue] Scheduler enabled for job: ${jobName}`);
+    } catch (err: any) {
+      console.warn(`[CronQueue] Failed to enable scheduler for ${jobName}:`, err.message);
+    }
+  }
+
+  /**
+   * Tắt/Hủy lịch trình lặp lại cho một cron job
+   */
+  async disableJobScheduler(jobName: CronJobName): Promise<void> {
+    if (!this.queue || !this.isRedisAvailable) return;
+
+    try {
+      await this.queue.removeJobScheduler(jobName).catch(() => {});
+      console.log(`[CronQueue] Scheduler disabled for job: ${jobName}`);
+    } catch (err: any) {
+      console.warn(`[CronQueue] Failed to disable scheduler for ${jobName}:`, err.message);
     }
   }
 

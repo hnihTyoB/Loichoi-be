@@ -37,6 +37,16 @@ class MockCronRepository extends CronRepository {
     { id: 'admin-1', email: 'admin@example.com', fullName: 'Super Admin' },
   ];
   public auditLogsCreated: any[] = [];
+  public mockStatuses: Record<string, boolean> = {};
+
+  override async getJobStatuses(): Promise<Record<string, boolean>> {
+    return this.mockStatuses;
+  }
+
+  override async setJobStatus(jobName: string, enabled: boolean): Promise<Record<string, boolean>> {
+    this.mockStatuses[jobName] = enabled;
+    return this.mockStatuses;
+  }
 
   override async deleteAuditLogsOlderThan(_cutoffDate: Date): Promise<number> {
     return this.deletedAuditLogsCount;
@@ -234,5 +244,29 @@ describe('Scheduled Tasks & BullMQ Cron Jobs Engine', () => {
 
     const validQuery = listCronJobsQuerySchema.safeParse({ search: 'cleanup' });
     assert.equal(validQuery.success, true);
+  });
+
+  it('8. Toggle Job: should enable/disable cron job and record audit log', async () => {
+    const disabledResult = await cronService.toggleJob(
+      CRON_JOB_NAMES.CLEANUP_UNCONFIRMED_UPLOADS,
+      false,
+      { actorId: 'admin-uuid-1' },
+    );
+
+    assert.equal(disabledResult.name, CRON_JOB_NAMES.CLEANUP_UNCONFIRMED_UPLOADS);
+    assert.equal(disabledResult.isEnabled, false);
+    assert.equal(mockRepo.mockStatuses[CRON_JOB_NAMES.CLEANUP_UNCONFIRMED_UPLOADS], false);
+
+    const listAfterDisable = await cronService.listJobs();
+    const targetJob = listAfterDisable.find((j) => j.name === CRON_JOB_NAMES.CLEANUP_UNCONFIRMED_UPLOADS);
+    assert.equal(targetJob?.isEnabled, false);
+
+    const enabledResult = await cronService.toggleJob(
+      CRON_JOB_NAMES.CLEANUP_UNCONFIRMED_UPLOADS,
+      true,
+      { actorId: 'admin-uuid-1' },
+    );
+    assert.equal(enabledResult.isEnabled, true);
+    assert.equal(mockRepo.mockStatuses[CRON_JOB_NAMES.CLEANUP_UNCONFIRMED_UPLOADS], true);
   });
 });

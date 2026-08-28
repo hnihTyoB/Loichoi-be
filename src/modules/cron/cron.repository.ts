@@ -185,6 +185,72 @@ export class CronRepository {
       },
     });
   }
+
+  /**
+   * Lấy lịch sử lần chạy gần nhất của các Cron Jobs từ Audit Logs
+   */
+  async getLatestRunsForJobs(jobNames: string[]): Promise<Map<string, { lastRun: Date; status: string }>> {
+    const logs = await prisma.auditLog.findMany({
+      where: {
+        targetType: 'CRON_JOB',
+        targetId: { in: jobNames },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      distinct: ['targetId'],
+      select: {
+        targetId: true,
+        createdAt: true,
+      },
+    });
+
+    const map = new Map<string, { lastRun: Date; status: string }>();
+    for (const log of logs) {
+      map.set(log.targetId, { lastRun: log.createdAt, status: 'SUCCESS' });
+    }
+    return map;
+  }
+
+  /**
+   * Lấy cấu hình trạng thái Bật/Tắt của các Cron Jobs từ bảng SystemConfig
+   */
+  async getJobStatuses(): Promise<Record<string, boolean>> {
+    const config = await prisma.systemConfig.findUnique({
+      where: { key: 'CRON_JOB_STATUSES' },
+    });
+
+    if (!config || !config.value || typeof config.value !== 'object') {
+      return {};
+    }
+
+    return config.value as Record<string, boolean>;
+  }
+
+  /**
+   * Cập nhật trạng thái Bật/Tắt của một Cron Job vào bảng SystemConfig
+   */
+  async setJobStatus(jobName: string, enabled: boolean): Promise<Record<string, boolean>> {
+    const current = await this.getJobStatuses();
+    const updated = { ...current, [jobName]: enabled };
+
+    await prisma.systemConfig.upsert({
+      where: { key: 'CRON_JOB_STATUSES' },
+      update: {
+        value: updated,
+        updatedAt: new Date(),
+      },
+      create: {
+        key: 'CRON_JOB_STATUSES',
+        value: updated,
+        category: 'CRON',
+        description: 'Trạng thái kích hoạt tự động của các tác vụ định kỳ Cron Jobs',
+        isPublic: false,
+      },
+    });
+
+    return updated;
+  }
 }
 
 export const cronRepository = new CronRepository();

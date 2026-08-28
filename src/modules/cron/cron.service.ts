@@ -1,6 +1,7 @@
 import { CronRepository, cronRepository } from './cron.repository';
 import { R2Service } from '../../common/services/r2.service';
 import { notificationDispatcher } from '../../common/services/notification-dispatcher.service';
+import { cronQueue } from '../../common/queues/cron.queue';
 import {
   CRON_JOB_NAMES,
   CronJobName,
@@ -14,9 +15,6 @@ import { formatVietnamDate, getVietnamDayRange } from '../../common/helpers/date
 import { extractR2Key } from '../../common/helpers/r2.helper';
 import { CronJobExecutionResultDto, CronJobItemDto } from './cron.dto';
 
-
-
-
 export class CronService {
   constructor(
     private readonly repository: CronRepository = cronRepository,
@@ -27,12 +25,24 @@ export class CronService {
    * Danh sách toàn bộ các tác vụ định kỳ đã đăng ký trong hệ thống
    */
   async listJobs(search?: string): Promise<CronJobItemDto[]> {
-    const jobs: CronJobItemDto[] = Object.entries(DEFAULT_CRON_SCHEDULES).map(([name, config]) => ({
-      name: name as CronJobName,
-      cron: config.cron,
-      description: config.description,
-      lastStatus: 'READY',
-    }));
+    const jobNames = Object.keys(DEFAULT_CRON_SCHEDULES);
+    const [latestRuns, statuses] = await Promise.all([
+      this.repository.getLatestRunsForJobs(jobNames),
+      this.repository.getJobStatuses(),
+    ]);
+
+    const jobs: CronJobItemDto[] = Object.entries(DEFAULT_CRON_SCHEDULES).map(([name, config]) => {
+      const history = latestRuns.get(name);
+      const isEnabled = statuses[name] !== false; // Mặc định bật nếu chưa cấu hình tắt
+      return {
+        name: name as CronJobName,
+        cron: config.cron,
+        description: config.description,
+        isEnabled,
+        lastRun: history?.lastRun ? history.lastRun.toISOString() : undefined,
+        lastStatus: history?.status || 'READY',
+      };
+    });
 
     if (search) {
       const lower = search.toLowerCase();
@@ -42,6 +52,53 @@ export class CronService {
     }
 
     return jobs;
+  }
+
+  /**
+   * Bật hoặc tắt kích hoạt tự động theo lịch của một Cron Job
+   */
+  async toggleJob(
+    jobName: CronJobName,
+    enabled: boolean,
+    actorContext?: { actorId?: string; ipAddress?: string; userAgent?: string },
+  ): Promise<CronJobItemDto> {
+    const config = DEFAULT_CRON_SCHEDULES[jobName];
+    if (!config) {
+      throw new Error(`Tác vụ '${jobName}' không tồn tại trong hệ thống`);
+    }
+
+    // 1. Cập nhật trạng thái vào cơ sở dữ liệu
+    await this.repository.setJobStatus(jobName, enabled);
+
+    // 2. Đồng bộ lịch trình BullMQ Scheduler
+    if (enabled) {
+      await cronQueue.enableJobScheduler(jobName);
+    } else {
+      await cronQueue.disableJobScheduler(jobName);
+    }
+
+    // 3. Ghi vết Audit Log
+    await this.repository.createAuditLog({
+      actorId: actorContext?.actorId,
+      action: AUDIT_ACTION.TOGGLE_FEATURE_FLAG,
+      targetType: AUDIT_TARGET_TYPE.CRON_JOB,
+      targetId: jobName,
+      details: { isEnabled: enabled, jobName },
+      ipAddress: actorContext?.ipAddress,
+      userAgent: actorContext?.userAgent,
+    });
+
+    const latestRuns = await this.repository.getLatestRunsForJobs([jobName]);
+    const history = latestRuns.get(jobName);
+
+    return {
+      name: jobName,
+      cron: config.cron,
+      description: config.description,
+      isEnabled: enabled,
+      lastRun: history?.lastRun ? history.lastRun.toISOString() : undefined,
+      lastStatus: history?.status || 'READY',
+    };
   }
 
   /**

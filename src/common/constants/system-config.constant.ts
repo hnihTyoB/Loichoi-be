@@ -20,6 +20,7 @@ export const FEATURE_FLAGS = {
   CREATOR_STUDIO_ENABLED: 'feature.creator_studio.enabled',
   COLLECTIONS_ENABLED: 'feature.collections.enabled',
   KEYBOARD_LIKES_ENABLED: 'feature.keyboard_likes.enabled',
+  CRON_SCHEDULER_ENABLED: 'feature.cron_scheduler.enabled',
 } as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAGS)[keyof typeof FEATURE_FLAGS];
@@ -186,6 +187,13 @@ export const DEFAULT_SYSTEM_CONFIGS = [
     description: 'Bật tính năng Thả tim và Lưu theme yêu thích',
     category: SYSTEM_CONFIG_CATEGORY.FEATURE_FLAG,
     isPublic: true,
+  },
+  {
+    key: FEATURE_FLAGS.CRON_SCHEDULER_ENABLED,
+    value: true,
+    description: 'Bật hạ tầng chạy tự động ngầm của toàn bộ hệ thống Cron Jobs & BullMQ Scheduler',
+    category: SYSTEM_CONFIG_CATEGORY.FEATURE_FLAG,
+    isPublic: false,
   },
 ] as const;
 

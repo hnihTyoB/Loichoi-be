@@ -16,3 +16,7 @@ export const triggerCronJobSchema = z.object({
 export const listCronJobsQuerySchema = z.object({
   search: z.string().optional(),
 });
+
+export const toggleCronJobSchema = z.object({
+  enabled: z.boolean({ required_error: 'Trạng thái enabled là bắt buộc (true/false)' }),
+});

@@ -36,3 +36,4 @@ export const DEFAULT_CRON_SCHEDULES: Record<CronJobName, { cron: string; descrip
 
 export const DEFAULT_AUDIT_LOG_RETENTION_DAYS = 30;
 export const DEFAULT_UNCONFIRMED_UPLOAD_MAX_AGE_HOURS = 24;
+export const CRON_JOB_STATUSES_CONFIG_KEY = 'CRON_JOB_STATUSES';

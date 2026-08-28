@@ -38,6 +38,29 @@ export class CronController {
       next(error);
     }
   };
+
+  toggleJob = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const jobName = req.params.jobName as CronJobName;
+      const enabled = Boolean(req.body.enabled);
+
+      const result = await this.service.toggleJob(jobName, enabled, {
+        actorId: req.user?.id,
+        ipAddress: req.ip || (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress,
+        userAgent: req.headers['user-agent'],
+      });
+
+      res.json({
+        success: true,
+        message: enabled
+          ? `Tác vụ '${jobName}' đã được BẬT lịch chạy tự động`
+          : `Tác vụ '${jobName}' đã được TẮT lịch chạy tự động`,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 
 export const cronController = new CronController();
