@@ -45,7 +45,13 @@ export class AuthService {
       throw new AppError('Invalid credentials', 401, ERROR_CODE.INVALID_CREDENTIALS);
     }
 
-    const payload = { id: user.id, email: user.email, role: user.role.name, roleId: user.roleId };
+    const payload = {
+      id: user.id,
+      userId: user.id,
+      email: user.email,
+      role: user.role.name,
+      roleId: user.roleId,
+    };
 
     const accessToken = jwt.sign(payload, jwtConfig.accessSecret, {
       expiresIn: jwtConfig.accessExpiresIn as jwt.SignOptions['expiresIn'],
@@ -133,52 +139,44 @@ export class AuthService {
       throw new AppError('Invalid refresh token', 401, ERROR_CODE.TOKEN_INVALID);
     }
 
-    const savedToken = await this.repository.findRefreshToken(token);
-    if (!savedToken) {
-      throw new AppError('Invalid or expired refresh token', 401, ERROR_CODE.TOKEN_INVALID);
+    const targetUserId = payload.id || payload.userId;
+    if (!targetUserId) {
+      throw new AppError('Invalid refresh token payload', 401, ERROR_CODE.TOKEN_INVALID);
     }
 
-    if (savedToken.expiresAt < new Date()) {
-      await this.repository.deleteRefreshToken(token);
-      throw new AppError('Refresh token expired', 401, ERROR_CODE.TOKEN_EXPIRED);
-    }
-
-    const user = await this.repository.findById(payload.userId);
+    const user = await this.repository.findById(targetUserId);
     if (!user || !user.isActive) {
       throw new AppError('User not found or inactive', 401, ERROR_CODE.USER_INACTIVE);
     }
 
-    // Single active device token rotation: revoke used refresh token immediately
-    await this.repository.deleteRefreshToken(token);
+    // Generate new token pair with standardized payload
+    const newPayload = {
+      id: user.id,
+      userId: user.id,
+      email: user.email,
+      role: user.role.name,
+      roleId: user.roleId,
+    };
 
-    // Generate new token pair
     const newAccessToken = jwt.sign(
-      {
-        userId: user.id,
-        email: user.email,
-        role: user.role.name,
-        roleId: user.roleId,
-      },
+      newPayload,
       jwtConfig.accessSecret,
       { expiresIn: jwtConfig.accessExpiresIn as jwt.SignOptions['expiresIn'] }
     );
 
     const newRefreshToken = jwt.sign(
-      { userId: user.id },
+      { ...newPayload, jti: crypto.randomUUID() },
       jwtConfig.refreshSecret,
       { expiresIn: jwtConfig.refreshExpiresIn as jwt.SignOptions['expiresIn'] }
     );
 
-    const newRefreshTokenExpiry = new Date();
-    newRefreshTokenExpiry.setDate(newRefreshTokenExpiry.getDate() + 7);
+    const decoded = jwt.decode(newRefreshToken) as { exp: number };
+    const newRefreshTokenExpiry = new Date(decoded.exp * 1000);
 
-    // Track device metadata for session management
-    const deviceHash = metadata?.userAgent
-      ? crypto.createHash('sha256').update(metadata.userAgent).digest('hex')
-      : undefined;
-
-    await this.repository.saveRefreshToken(
+    // Atomic Token Rotation with Token Family Invalidation (RFC 6819)
+    await this.repository.rotateRefreshToken(
       user.id,
+      token,
       newRefreshToken,
       newRefreshTokenExpiry,
       metadata?.userAgent,
@@ -228,7 +226,7 @@ export class AuthService {
   async register(data: RegisterDto): Promise<void> {
     const { email, password, fullName } = data;
 
-    const existing = await this.repository.findByEmail(email);
+    const existing = await this.repository.findAnyByEmail(email);
     if (existing) {
       throw new AppError('Email already exists', 400, ERROR_CODE.DUPLICATE_ENTRY);
     }
@@ -570,7 +568,13 @@ export class AuthService {
       throw new AppError('Unable to authenticate Discord user', 500, ERROR_CODE.INTERNAL_SERVER_ERROR);
     }
 
-    const payload = { id: user.id, email: user.email, role: user.role.name, roleId: user.roleId };
+    const payload = {
+      id: user.id,
+      userId: user.id,
+      email: user.email,
+      role: user.role.name,
+      roleId: user.roleId,
+    };
 
     const accessToken = jwt.sign(payload, jwtConfig.accessSecret, {
       expiresIn: jwtConfig.accessExpiresIn as jwt.SignOptions['expiresIn'],

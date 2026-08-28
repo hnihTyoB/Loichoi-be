@@ -537,6 +537,13 @@ export class KeyboardRepository {
   }
 
 
+  findByIds(ids: string[]) {
+    return prisma.keyboardTheme.findMany({
+      where: { id: { in: ids }, status: 'PUBLISHED' },
+      select: { id: true },
+    });
+  }
+
   findBySlug(slug: string) {
     return prisma.keyboardTheme.findUnique({
       where: { slug },

@@ -79,6 +79,8 @@ export const studioCreateThemeSchema = z
     accessLevel: z.enum(['FREE', 'PREMIUM', 'DISCORD_MEMBER', 'DISCORD_ROLE']).optional().default('FREE'),
     requiredDiscordRoleIds: z.array(z.string().trim().min(1, 'Role ID không được rỗng')).optional().default([]),
     categoryIds: z.array(z.string().uuid('Category ID phải là UUID hợp lệ')),
+    colorIds: z.array(z.string().uuid('Color ID phải là UUID hợp lệ')).optional().default([]),
+    styleIds: z.array(z.string().uuid('Style ID phải là UUID hợp lệ')).optional().default([]),
     previewImages: z.array(previewImageItemSchema).max(10, 'Tối đa 10 ảnh xem trước').optional().default([]),
   })
   .refine(
@@ -135,6 +137,8 @@ export const studioUpdateThemeSchema = z
     accessLevel: z.enum(['FREE', 'PREMIUM', 'DISCORD_MEMBER', 'DISCORD_ROLE']).optional(),
     requiredDiscordRoleIds: z.array(z.string().trim().min(1, 'Role ID không được rỗng')).optional(),
     categoryIds: z.array(z.string().uuid('Category ID phải là UUID hợp lệ')).optional(),
+    colorIds: z.array(z.string().uuid('Color ID phải là UUID hợp lệ')).optional(),
+    styleIds: z.array(z.string().uuid('Style ID phải là UUID hợp lệ')).optional(),
     previewImages: z.array(previewImageItemSchema).max(10, 'Tối đa 10 ảnh xem trước').optional(),
   })
   .refine(

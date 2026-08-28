@@ -419,6 +419,7 @@ describe('System Maintenance Mode Module', () => {
 
   it('11. Unauthorized user lacking MAINTENANCE_MANAGE cannot access maintenance management routes', async () => {
     const { requirePermission } = require('../src/middlewares/permission.middleware');
+    const { AuthRepository } = require('../src/modules/auth/auth.repository');
     const manageMiddleware = requirePermission(PERMISSIONS.MAINTENANCE_MANAGE);
 
     const normalUserRoleId = 'role-normal-user-uuid';
@@ -427,9 +428,19 @@ describe('System Maintenance Mode Module', () => {
       expiresAt: Date.now() + 60000,
     });
 
+    const originalFindById = AuthRepository.prototype.findById;
+    AuthRepository.prototype.findById = async (userId: string): Promise<any> => {
+      return {
+        id: userId,
+        isActive: true,
+        roleId: normalUserRoleId,
+        role: { name: ROLES.USER },
+      };
+    };
+
     const req: any = {
       user: {
-        id: 'user-normal',
+        id: '11111111-1111-4111-8111-111111111111',
         email: 'user@template.local',
         role: ROLES.USER,
         roleId: normalUserRoleId,
@@ -437,9 +448,13 @@ describe('System Maintenance Mode Module', () => {
     };
     let nextError: any = null;
 
-    await manageMiddleware(req, {} as any, (err: any) => {
-      nextError = err;
-    });
+    try {
+      await manageMiddleware(req, {} as any, (err: any) => {
+        nextError = err;
+      });
+    } finally {
+      AuthRepository.prototype.findById = originalFindById;
+    }
 
     assert.ok(nextError instanceof AppError);
     assert.equal(nextError.statusCode, 403);

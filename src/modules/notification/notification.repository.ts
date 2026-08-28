@@ -150,16 +150,17 @@ export class NotificationRepository {
   }
 
   createSingleEmailNotification(data: {
-    userId: string;
+    userId?: string | null;
     toEmail: string;
     subject: string;
     templateKey: string;
     templateData: any;
     status?: string;
   }) {
+    const isValidUuid = data.userId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.userId);
     return prisma.emailNotification.create({
       data: {
-        userId: data.userId,
+        userId: isValidUuid ? data.userId : null,
         toEmail: data.toEmail,
         subject: data.subject,
         templateKey: data.templateKey,

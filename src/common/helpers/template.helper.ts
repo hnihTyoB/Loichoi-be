@@ -1,4 +1,17 @@
 /**
+ * Hàm escape các ký tự HTML nguy hiểm nhằm chống HTML Injection trong email templates.
+ */
+export function escapeHtml(str: string | undefined | null): string {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/**
  * Helper thay thế an toàn các biến placeholder dạng {{variableName}} trong chuỗi template.
  * @param template Chuỗi mẫu (ví dụ: "Chào {{fullName}}, mã xác thực là {{token}}")
  * @param variables Object chứa các giá trị biến (ví dụ: { fullName: "Nguyễn Văn A", token: "123456" })

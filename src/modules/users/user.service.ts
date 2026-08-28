@@ -24,7 +24,7 @@ export class UserService {
   }
 
   async create(data: CreateUserDto) {
-    const existing = await this.repository.findByEmail(data.email);
+    const existing = await this.repository.findAnyByEmail(data.email);
 
     if (existing) {
       throw new AppError('Email already exists', 409, ERROR_CODE.DUPLICATE_ENTRY);

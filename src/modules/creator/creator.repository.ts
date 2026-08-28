@@ -212,7 +212,11 @@ export class CreatorRepository {
     };
 
     let orderBy: Prisma.UserOrderByWithRelationInput[] = [{ createdAt: 'desc' }];
-    if (sort === 'NAME_ASC') {
+    if (sort === 'TOP_FOLLOWERS') {
+      orderBy = [{ followers: { _count: 'desc' } }, { createdAt: 'desc' }];
+    } else if (sort === 'TOP_THEMES') {
+      orderBy = [{ authoredThemes: { _count: 'desc' } }, { createdAt: 'desc' }];
+    } else if (sort === 'NAME_ASC') {
       orderBy = [{ fullName: 'asc' }, { username: 'asc' }];
     } else if (sort === 'NAME_DESC') {
       orderBy = [{ fullName: 'desc' }, { username: 'desc' }];
@@ -235,6 +239,12 @@ export class CreatorRepository {
           isCreator: true,
           isFeaturedCreator: true,
           createdAt: true,
+          _count: {
+            select: {
+              followers: true,
+              authoredThemes: { where: { status: 'PUBLISHED' } },
+            },
+          },
         },
         orderBy,
         skip,
@@ -243,31 +253,75 @@ export class CreatorRepository {
       prisma.user.count({ where }),
     ]);
 
-    // Lấy stats cho danh sách creator
-    const dataWithStats = await Promise.all(
-      users.map(async (user) => {
-        const stats = await this.getCreatorStats(user.id);
-        return {
-          id: user.id,
-          fullName: user.fullName,
-          username: user.username!,
-          bio: user.bio,
-          avatarUrl: user.avatarUrl,
-          bannerUrl: user.bannerUrl,
-          isCreator: user.isCreator,
-          isFeaturedCreator: user.isFeaturedCreator,
-          stats,
-        };
-      }),
-    );
+    const userIds = users.map((u) => u.id);
 
-    // Xử lý sắp xếp theo số liệu tổng hợp nếu có yêu cầu
-    if (sort === 'TOP_FOLLOWERS') {
-      dataWithStats.sort((a, b) => b.stats.followersCount - a.stats.followersCount);
-    } else if (sort === 'TOP_DOWNLOADS') {
+    // Batch query aggregates for all creators on page in parallel (O(1) queries instead of N+1)
+    const [downloadAggregates, collectionAggregates] = userIds.length > 0
+      ? await Promise.all([
+          prisma.keyboardTheme.groupBy({
+            by: ['createdBy'],
+            where: {
+              createdBy: { in: userIds },
+              status: 'PUBLISHED',
+            },
+            _sum: {
+              downloadCount: true,
+              likeCount: true,
+            },
+          }),
+          prisma.collection.groupBy({
+            by: ['userId'],
+            where: {
+              userId: { in: userIds },
+              isPublic: true,
+            },
+            _count: {
+              _all: true,
+            },
+          }),
+        ])
+      : [[], []];
+
+    const downloadStatsMap = new Map<string, { downloadsCount: number; likesCount: number }>();
+    for (const item of downloadAggregates) {
+      if (item.createdBy) {
+        downloadStatsMap.set(item.createdBy, {
+          downloadsCount: item._sum.downloadCount || 0,
+          likesCount: item._sum.likeCount || 0,
+        });
+      }
+    }
+
+    const collectionStatsMap = new Map<string, number>();
+    for (const item of collectionAggregates) {
+      collectionStatsMap.set(item.userId, item._count._all || 0);
+    }
+
+    const dataWithStats = users.map((user) => {
+      const downloadStats = downloadStatsMap.get(user.id) || { downloadsCount: 0, likesCount: 0 };
+      const collectionsCount = collectionStatsMap.get(user.id) || 0;
+
+      return {
+        id: user.id,
+        fullName: user.fullName,
+        username: user.username!,
+        bio: user.bio,
+        avatarUrl: user.avatarUrl,
+        bannerUrl: user.bannerUrl,
+        isCreator: user.isCreator,
+        isFeaturedCreator: user.isFeaturedCreator,
+        stats: {
+          themesCount: user._count.authoredThemes,
+          downloadsCount: downloadStats.downloadsCount,
+          likesCount: downloadStats.likesCount,
+          followersCount: user._count.followers,
+          collectionsCount,
+        },
+      };
+    });
+
+    if (sort === 'TOP_DOWNLOADS') {
       dataWithStats.sort((a, b) => b.stats.downloadsCount - a.stats.downloadsCount);
-    } else if (sort === 'TOP_THEMES') {
-      dataWithStats.sort((a, b) => b.stats.themesCount - a.stats.themesCount);
     }
 
     return {

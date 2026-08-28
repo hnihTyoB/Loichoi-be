@@ -15,7 +15,17 @@ export class AuthRepository {
     });
   }
 
+  findAnyByEmail(email: string) {
+    return prisma.user.findFirst({
+      where: { email },
+      include: { role: true, socialAccounts: true },
+    });
+  }
+
   findById(id: string) {
+    if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return null;
+    }
     return prisma.user.findFirst({
       where: { id, deletedAt: null },
       include: { role: true, socialAccounts: true },
@@ -367,7 +377,7 @@ export class AuthRepository {
       await tx.verificationToken.create({
         data: {
           userId: user.id,
-          token,
+          token: hashToken(token),
           expiresAt,
         },
       });

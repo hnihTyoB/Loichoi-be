@@ -173,3 +173,11 @@ export function verifyHmacSignature(
     Buffer.from(expectedSignature, 'utf8'),
   );
 }
+
+/**
+ * Băm chuỗi token bằng thuật toán SHA-256 dùng cho refresh token, verification token, reset password token.
+ */
+export function hashToken(token: string): string {
+  if (!token) return '';
+  return crypto.createHash('sha256').update(token).digest('hex');
+}

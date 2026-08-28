@@ -61,6 +61,9 @@ export class UserRepository {
   }
 
   findById(id: string) {
+    if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return null;
+    }
     return prisma.user.findFirst({
       where: { id, deletedAt: null },
       select: userSelect,
@@ -70,6 +73,13 @@ export class UserRepository {
   findByEmail(email: string) {
     return prisma.user.findFirst({
       where: { email, deletedAt: null },
+      select: userSelect,
+    });
+  }
+
+  findAnyByEmail(email: string) {
+    return prisma.user.findFirst({
+      where: { email },
       select: userSelect,
     });
   }

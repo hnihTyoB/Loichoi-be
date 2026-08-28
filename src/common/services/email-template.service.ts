@@ -1,7 +1,7 @@
 import { mailConfig } from '../../config/mail.config';
 import { notificationRepository } from '../../modules/notification/notification.repository';
 import { EMAIL_TEMPLATE_KEY, EmailTemplateKey } from '../constants/notification.constant';
-import { renderTemplateString } from '../helpers/template.helper';
+import { renderTemplateString, escapeHtml } from '../helpers/template.helper';
 import { formatVietnamDateTime } from '../helpers/date.helper';
 
 export interface EmailTemplate {
@@ -78,10 +78,11 @@ export class EmailTemplateService {
   private verifyEmail(data: Record<string, unknown>): EmailTemplate {
     const { token, fullName } = data as { token: string; fullName?: string };
     const verificationUrl = `${mailConfig.verificationUrl}?token=${token}`;
+    const safeName = escapeHtml(fullName) || 'bạn';
     return {
       subject: 'Xác thực tài khoản của bạn',
       html: this.baseLayout('Xác thực tài khoản', `
-        <p>Chào ${fullName || 'bạn'},</p>
+        <p>Chào ${safeName},</p>
         <p>Cảm ơn bạn đã đăng ký tài khoản. Vui lòng click vào nút bên dưới để xác thực email:</p>
         <div style="text-align: center; margin: 32px 0;">
           <a href="${verificationUrl}"
@@ -97,10 +98,11 @@ export class EmailTemplateService {
 
   private resetPassword(data: Record<string, unknown>): EmailTemplate {
     const { resetUrl, fullName } = data as { resetUrl: string; fullName?: string };
+    const safeName = escapeHtml(fullName) || 'bạn';
     return {
       subject: 'Đặt lại mật khẩu',
       html: this.baseLayout('Đặt lại mật khẩu', `
-        <p>Chào ${fullName || 'bạn'},</p>
+        <p>Chào ${safeName},</p>
         <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn.</p>
         <div style="text-align: center; margin: 32px 0;">
           <a href="${resetUrl}"
@@ -121,6 +123,9 @@ export class EmailTemplateService {
       time?: string;
       fullName?: string;
     };
+    const safeName = escapeHtml(fullName) || 'bạn';
+    const safeDevice = escapeHtml(deviceName) || 'Thiết bị không xác định';
+    const safeIp = escapeHtml(ipAddress) || 'Không rõ';
     return {
       subject: 'Phát hiện đăng nhập từ thiết bị mới',
       html: this.baseLayout('⚠️ Cảnh báo bảo mật', `

@@ -59,13 +59,11 @@ export class CollectionService {
       throw new AppError('Đường dẫn định danh (slug) của bộ sưu tập đã tồn tại', 409, ERROR_CODE.COLLECTION_SLUG_EXISTS);
     }
 
-    // Xác thực các theme nếu có truyền themeIds
+    // Xác thực các theme nếu có truyền themeIds (Batch query chống N+1)
     if (data.themeIds && data.themeIds.length > 0) {
-      for (const themeId of data.themeIds) {
-        const theme = await this.keyboardRepository.findById(themeId);
-        if (!theme || theme.status !== 'PUBLISHED') {
-          throw new AppError(`Theme có ID ${themeId} không tồn tại hoặc chưa được phát hành`, 400, ERROR_CODE.THEME_NOT_FOUND);
-        }
+      const validThemes = await this.keyboardRepository.findByIds(data.themeIds);
+      if (validThemes.length !== data.themeIds.length) {
+        throw new AppError('Một hoặc nhiều theme không tồn tại hoặc chưa được phát hành', 400, ERROR_CODE.THEME_NOT_FOUND);
       }
     }
 
@@ -115,8 +113,14 @@ export class CollectionService {
       }
     }
 
+    const updatePayload = { ...data };
+    // Privilege Escalation Protection: Chỉ Admin mới có quyền gán isFeatured
+    if (userRole !== 'ADMIN') {
+      delete updatePayload.isFeatured;
+    }
+
     const updated = await this.repository.update(id, {
-      ...data,
+      ...updatePayload,
       slug,
     });
 
