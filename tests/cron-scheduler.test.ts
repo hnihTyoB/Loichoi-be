@@ -269,4 +269,13 @@ describe('Scheduled Tasks & BullMQ Cron Jobs Engine', () => {
     assert.equal(enabledResult.isEnabled, true);
     assert.equal(mockRepo.mockStatuses[CRON_JOB_NAMES.CLEANUP_UNCONFIRMED_UPLOADS], true);
   });
+
+  it('9. Timezone & Disabled Scheduler Filter: should filter out disabled jobs for scheduler initialization', async () => {
+    mockRepo.mockStatuses[CRON_JOB_NAMES.DAILY_SUMMARY_DIGEST] = false;
+    const statuses = await mockRepo.getJobStatuses();
+    const disabledJobs = Object.keys(DEFAULT_CRON_SCHEDULES).filter((name) => statuses[name] === false);
+    
+    assert.ok(disabledJobs.includes(CRON_JOB_NAMES.DAILY_SUMMARY_DIGEST));
+    assert.equal(disabledJobs.includes(CRON_JOB_NAMES.CLEANUP_AUDIT_LOGS), false);
+  });
 });

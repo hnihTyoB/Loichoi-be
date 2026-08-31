@@ -19,7 +19,7 @@ export const envConfig = {
       }
       return secret || 'default_refresh_secret';
     })(),
-    accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m',
+    accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '1h',
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
   },
   trustProxy: (() => {

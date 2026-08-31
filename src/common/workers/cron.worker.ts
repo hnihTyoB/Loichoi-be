@@ -4,6 +4,7 @@ import { envConfig } from '../../config/env.config';
 import { CRON_QUEUE_NAME } from '../constants/cron.constant';
 import { CronJobData } from '../queues/cron.queue';
 import { cronService } from '../../modules/cron/cron.service';
+import { cronRepository } from '../../modules/cron/cron.repository';
 
 export class CronWorker {
   private worker?: Worker<CronJobData>;
@@ -30,6 +31,18 @@ export class CronWorker {
       this.worker = new Worker<CronJobData>(
         CRON_QUEUE_NAME,
         async (job: Job<CronJobData>) => {
+          // Verify if job is active before processing scheduled executions
+          const isManual = job.name.startsWith('manual:');
+          if (!isManual) {
+            const statuses: Record<string, boolean> = await cronRepository.getJobStatuses().catch((): Record<string, boolean> => ({}));
+            if (statuses[job.data.jobName] === false) {
+              console.log(
+                `[CronWorker] ⏭️ Skipping scheduled job '${job.data.jobName}' because it is currently disabled.`,
+              );
+              return;
+            }
+          }
+
           console.log(`[CronWorker] ⏳ Processing scheduled job: '${job.data.jobName}'...`);
           await cronService.triggerJob(job.data.jobName, job.data.params || {}, {
             actorId: undefined,

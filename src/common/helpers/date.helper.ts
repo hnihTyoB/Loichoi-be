@@ -1,4 +1,4 @@
-const VIETNAM_TIMEZONE = 'Asia/Ho_Chi_Minh';
+export const VIETNAM_TIMEZONE = 'Asia/Ho_Chi_Minh';
 /**
  * Vietnam (Asia/Ho_Chi_Minh) operates at fixed UTC+7 without Daylight Saving Time (DST).
  * Using fixed-offset calculation provides sub-millisecond conversion performance

@@ -11,6 +11,9 @@ import { systemConfigService } from './modules/system-config/system-config.servi
 import { sseManagerService } from './common/services/sse-manager.service';
 import { prisma } from './database/prisma.client';
 
+import { cronRepository } from './modules/cron/cron.repository';
+import { DEFAULT_CRON_SCHEDULES } from './common/constants/cron.constant';
+
 const PORT = envConfig.port;
 
 const server = app.listen(PORT, async () => {
@@ -25,7 +28,12 @@ const server = app.listen(PORT, async () => {
   emailWorker.start();
   webhookWorker.start();
   cronWorker.start();
-  await cronQueue.registerSchedules();
+
+  const jobStatuses: Record<string, boolean> = await cronRepository.getJobStatuses().catch((): Record<string, boolean> => ({}));
+  const disabledJobs = Object.keys(DEFAULT_CRON_SCHEDULES).filter(
+    (name) => jobStatuses[name] === false,
+  );
+  await cronQueue.registerSchedules(disabledJobs);
 });
 
 // Graceful Shutdown Handler

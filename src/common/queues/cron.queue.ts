@@ -7,6 +7,7 @@ import {
   CronJobName,
   DEFAULT_CRON_SCHEDULES,
 } from '../constants/cron.constant';
+import { VIETNAM_TIMEZONE } from '../helpers/date.helper';
 
 export interface CronJobData {
   jobName: CronJobName;
@@ -76,7 +77,7 @@ export class CronQueueService {
   }
 
   /**
-   * Đăng ký tất cả các Repeatable Cron Jobs theo biểu thức cron chuẩn
+   * Đăng ký tất cả các Repeatable Cron Jobs theo biểu thức cron chuẩn với múi giờ Asia/Ho_Chi_Minh
    */
   async registerSchedules(disabledJobs: string[] = []): Promise<void> {
     if (!this.queue || !this.isRedisAvailable) return;
@@ -90,7 +91,7 @@ export class CronQueueService {
 
         await this.queue.upsertJobScheduler(
           jobName,
-          { pattern: config.cron },
+          { pattern: config.cron, tz: VIETNAM_TIMEZONE },
           {
             name: jobName,
             data: {
@@ -100,7 +101,7 @@ export class CronQueueService {
           },
         );
       }
-      console.log('[CronQueue] Repeatable cron jobs successfully registered');
+      console.log('[CronQueue] Repeatable cron jobs successfully registered in timezone', VIETNAM_TIMEZONE);
     } catch (err: any) {
       console.warn('[CronQueue] Failed to register repeatable schedules:', err.message);
     }
@@ -117,7 +118,7 @@ export class CronQueueService {
     try {
       await this.queue.upsertJobScheduler(
         jobName,
-        { pattern: config.cron },
+        { pattern: config.cron, tz: VIETNAM_TIMEZONE },
         {
           name: jobName,
           data: {
@@ -126,7 +127,7 @@ export class CronQueueService {
           },
         },
       );
-      console.log(`[CronQueue] Scheduler enabled for job: ${jobName}`);
+      console.log(`[CronQueue] Scheduler enabled for job: ${jobName} (tz: ${VIETNAM_TIMEZONE})`);
     } catch (err: any) {
       console.warn(`[CronQueue] Failed to enable scheduler for ${jobName}:`, err.message);
     }
