@@ -164,22 +164,28 @@ export class DiscordImportService {
         if (Array.isArray(msg.embeds)) {
           for (const embed of msg.embeds as any[]) {
             const imgUrl = embed?.image?.url || embed?.thumbnail?.url;
-            if (imgUrl && !images.some((i) => i.url === imgUrl)) {
-              images.push({
-                url: imgUrl,
-                filename: `embed_${images.length + 1}.jpg`,
-                messageId: msg.messageId,
-                position: images.length,
-              });
+            if (imgUrl) {
+              const baseUrl = imgUrl.split('?')[0].toLowerCase();
+              if (!images.some((i) => i.url.split('?')[0].toLowerCase() === baseUrl)) {
+                images.push({
+                  url: imgUrl,
+                  filename: `embed_${images.length + 1}.jpg`,
+                  messageId: msg.messageId,
+                  position: images.length,
+                });
+              }
             }
           }
         }
 
-        // Extract images from direct links in content
-        const contentImgMatches = msg.content.match(/https?:\/\/[^\s]+(?:\.png|\.jpe?g|\.webp|\.gif|\.bmp|\.avif)/gi);
+        // Extract images from direct links in content (preserve query string for CDN auth)
+        const contentImgMatches = msg.content.match(
+          /https?:\/\/[^\s)]+(?:\.png|\.jpe?g|\.webp|\.gif|\.bmp|\.avif)(?:\?[^\s)]+)?/gi,
+        );
         if (contentImgMatches) {
           for (const url of contentImgMatches) {
-            if (!images.some((i) => i.url === url)) {
+            const baseUrl = url.split('?')[0].toLowerCase();
+            if (!images.some((i) => i.url.split('?')[0].toLowerCase() === baseUrl)) {
               images.push({
                 url,
                 filename: `img_${images.length + 1}.jpg`,
@@ -269,9 +275,20 @@ export class DiscordImportService {
         downloadUrl = getDiscordMessageUrl(firstMsg.messageId);
       }
 
-      // Cover = first image, previews = rest
-      const coverUrl = images[0]?.url ?? null;
-      const previewUrls = images.slice(1).map((i) => i.url);
+      // Deduplicate images by base URL
+      const uniqueImages: typeof images = [];
+      const seenBaseUrls = new Set<string>();
+      for (const img of images) {
+        const baseUrl = img.url.split('?')[0].toLowerCase();
+        if (!seenBaseUrls.has(baseUrl)) {
+          seenBaseUrls.add(baseUrl);
+          uniqueImages.push(img);
+        }
+      }
+
+      // Cover = first unique image, previews = remaining distinct images
+      const coverUrl = uniqueImages[0]?.url ?? null;
+      const previewUrls = uniqueImages.slice(1).map((i) => i.url);
 
       // ── Duplicate check ──
       let isDuplicateCandidate = false;
