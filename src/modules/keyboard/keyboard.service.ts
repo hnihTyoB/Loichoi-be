@@ -441,6 +441,31 @@ export class KeyboardService {
     };
   }
 
+  async bulkDelete(
+    ids: string[],
+    actorId?: string,
+    metadata?: { ipAddress?: string; userAgent?: string },
+  ) {
+    const succeeded: string[] = [];
+    const failed: Array<{ id: string; reason: string }> = [];
+
+    for (const id of ids) {
+      try {
+        await this.delete(id, actorId, metadata);
+        succeeded.push(id);
+      } catch (err: any) {
+        failed.push({ id, reason: err?.message || 'Failed to delete' });
+      }
+    }
+
+    return {
+      succeeded,
+      failed,
+      totalRequested: ids.length,
+      totalDeleted: succeeded.length,
+    };
+  }
+
   async toggleLike(
     slug: string,
     userId: string,

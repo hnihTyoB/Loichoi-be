@@ -15,6 +15,7 @@ import {
   keyboardManagementQuerySchema,
   getThemeImageUploadUrlSchema,
   getThemeBatchImageUploadUrlsSchema,
+  bulkDeleteKeyboardSchema,
 } from './keyboard.validation';
 
 const router = Router();
@@ -46,6 +47,14 @@ router.get(
   requirePermission(PERMISSIONS.KEYBOARD_READ),
   validate(keyboardManagementQuerySchema, 'query'),
   keyboardController.findManagementList,
+);
+
+router.post(
+  '/manage/bulk-delete',
+  authMiddleware,
+  requirePermission(PERMISSIONS.KEYBOARD_DELETE),
+  validate(bulkDeleteKeyboardSchema),
+  keyboardController.bulkDelete,
 );
 
 router.post(

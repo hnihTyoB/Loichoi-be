@@ -172,4 +172,11 @@
 
 - **Body Size Limit (BUG-12)**: `express.json()` và `express.urlencoded()` đã có `limit: '512kb'`.
 
-- **P2002 Error Context (BUG-13)**: `error.middleware.ts` inspect `error.meta?.target` để trả về message cụ thể khi slug bị conflict.
+- **Discord Import & AI Draft System (2026-08-30)**:
+  - Hệ thống nhập liệu tự động từ Discord Threads: `Discord Thread -> Import Job -> Normalization -> Deterministic Parser -> AI Draft -> Admin Review -> Published Keyboard`.
+  - 3 Models mới trong Prisma: `DiscordThread` (lưu metadata và `rawData` JSON nguyên bản), `ImportJob` (trạng thái vòng đời và pha xử lý), `KeyboardDraft` (bản nháp sau parser/AI kèm confidence score và validation flags).
+  - Khả năng Idempotent: `POST /api/v1/imports` nhận dữ liệu thô, chống tạo job trùng lặp trên cùng một `discordThreadId`.
+  - Deterministic parser: nhận diện nền tảng (`IOS` cho `.bdi`, `ANDROID` cho `.bds`, `BOTH` khi có cả hai hoặc Google Drive link), bóc tách cover và preview ảnh.
+  - Phân quyền & Audit Logs: `IMPORT_READ`, `IMPORT_MANAGE`, `IMPORT_APPROVE` kèm `AUDIT_ACTION.CREATE_IMPORT_JOB`, `APPROVE_IMPORT_DRAFT`, `REJECT_IMPORT_DRAFT`, `BULK_APPROVE_IMPORT`, `REPROCESS_IMPORT_JOB`.
+  - Feature flags & System configs: `FEATURE_FLAGS.DISCORD_IMPORT_ENABLED`, `FEATURE_FLAGS.AI_IMPORT_ENABLED`, `import.ai_confidence_threshold`, `import.bulk_approve_max`.
+  - Admin Bulk Review & Detail Review: giao diện quản trị FE hỗ trợ lọc độ tin cậy cao (≥90%), duyệt hàng loạt và chỉnh sửa chi tiết.

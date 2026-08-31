@@ -178,3 +178,9 @@ export const getThemeBatchImageUploadUrlsSchema = z.object({
     .min(1, 'Cần ít nhất 1 file để yêu cầu upload URL')
     .max(15, 'Tối đa 15 file mỗi lần yêu cầu upload URL'),
 });
+
+export const bulkDeleteKeyboardSchema = z.object({
+  ids: z.array(z.string().uuid('ID theme phải là UUID hợp lệ')).min(1, 'Cần chọn ít nhất 1 theme để xóa').max(100, 'Tối đa 100 theme mỗi lần xóa'),
+});
+
+export type BulkDeleteKeyboardDto = z.infer<typeof bulkDeleteKeyboardSchema>;

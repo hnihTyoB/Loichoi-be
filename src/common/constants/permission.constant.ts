@@ -79,6 +79,11 @@ export const PERMISSIONS = {
   // Creator Studio & Creator Management
   STUDIO_ACCESS: 'STUDIO_ACCESS',
   CREATOR_MANAGE: 'CREATOR_MANAGE',
+
+  // Discord Import Management
+  IMPORT_READ: 'IMPORT_READ',
+  IMPORT_MANAGE: 'IMPORT_MANAGE',
+  IMPORT_APPROVE: 'IMPORT_APPROVE',
 } as const;
 
 

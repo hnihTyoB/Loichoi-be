@@ -15,6 +15,7 @@ import { registerKeyboardOpenApi } from '../modules/keyboard/keyboard.openapi';
 import { registerCreatorOpenApi } from '../modules/creator/creator.openapi';
 import { registerCollectionOpenApi } from '../modules/collection/collection.openapi';
 import { registerStudioOpenApi } from '../modules/studio/studio.openapi';
+import { registerDiscordImportOpenApi } from '../modules/discord-import/discord-import.openapi';
 import { registerHealthOpenApi } from '../routes/health.openapi';
 
 // Tự động khởi tạo và đăng ký 100% routes & schemas từ Zod validation schemas
@@ -33,6 +34,7 @@ registerKeyboardOpenApi();
 registerCreatorOpenApi();
 registerCollectionOpenApi();
 registerStudioOpenApi();
+registerDiscordImportOpenApi();
 registerHealthOpenApi();
 
 

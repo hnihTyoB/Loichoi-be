@@ -14,6 +14,7 @@ import keyboardRoute from '../modules/keyboard/keyboard.route';
 import creatorRoute from '../modules/creator/creator.route';
 import collectionRoute from '../modules/collection/collection.route';
 import studioRoute from '../modules/studio/studio.route';
+import discordImportRoute from '../modules/discord-import/discord-import.route';
 import healthRoute from './health.route';
 import { maintenanceGuard } from '../middlewares/maintenance.middleware';
 
@@ -40,6 +41,7 @@ router.use('/keyboards', keyboardRoute);
 router.use('/creators', creatorRoute);
 router.use('/collections', collectionRoute);
 router.use('/studio', studioRoute);
+router.use('/imports', discordImportRoute);
 
 export default router;
 

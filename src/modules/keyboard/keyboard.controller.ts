@@ -184,6 +184,26 @@ export class KeyboardController {
     }
   };
 
+  bulkDelete = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { ids } = req.body as { ids: string[] };
+      const actorId = req.user?.id;
+      const metadata = {
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      };
+
+      const result = await this.service.bulkDelete(ids, actorId, metadata);
+      res.json({
+        success: true,
+        data: result,
+        message: `Đã xóa thành công ${result.totalDeleted}/${result.totalRequested} giao diện bàn phím`,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   download = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const slug = req.params.slug;

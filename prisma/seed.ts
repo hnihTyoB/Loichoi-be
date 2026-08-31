@@ -84,6 +84,11 @@ const SYSTEM_PERMISSIONS = [
   // Creator Studio & Creator Management
   { name: 'STUDIO_ACCESS', resource: 'STUDIO', action: 'ACCESS', description: 'Truy cập Creator Studio' },
   { name: 'CREATOR_MANAGE', resource: 'CREATOR', action: 'MANAGE', description: 'Quản lý tài khoản và xét duyệt Creator' },
+
+  // Discord Import Management
+  { name: 'IMPORT_READ', resource: 'IMPORT', action: 'READ', description: 'Xem danh sách và chi tiết Import Jobs và Keyboard Drafts' },
+  { name: 'IMPORT_MANAGE', resource: 'IMPORT', action: 'MANAGE', description: 'Tạo, chỉnh sửa, từ chối và chạy lại Import Jobs' },
+  { name: 'IMPORT_APPROVE', resource: 'IMPORT', action: 'APPROVE', description: 'Duyệt và publish Keyboard Draft từ Discord Import' },
 ];
 
 const USER_BASE_PERMISSIONS: string[] = [
@@ -125,6 +130,7 @@ const MANAGER_PERMISSIONS: string[] = [
   'COLLECTION_DELETE',
   'STUDIO_ACCESS',
   'CREATOR_MANAGE',
+  'IMPORT_READ',
 ];
 
 async function main() {

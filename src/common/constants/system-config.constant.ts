@@ -21,6 +21,8 @@ export const FEATURE_FLAGS = {
   COLLECTIONS_ENABLED: 'feature.collections.enabled',
   KEYBOARD_LIKES_ENABLED: 'feature.keyboard_likes.enabled',
   CRON_SCHEDULER_ENABLED: 'feature.cron_scheduler.enabled',
+  DISCORD_IMPORT_ENABLED: 'feature.discord_import.enabled',
+  AI_IMPORT_ENABLED: 'feature.ai_import.enabled',
 } as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAGS)[keyof typeof FEATURE_FLAGS];
@@ -193,6 +195,34 @@ export const DEFAULT_SYSTEM_CONFIGS = [
     value: true,
     description: 'Bật hạ tầng chạy tự động ngầm của toàn bộ hệ thống Cron Jobs & BullMQ Scheduler',
     category: SYSTEM_CONFIG_CATEGORY.FEATURE_FLAG,
+    isPublic: false,
+  },
+  {
+    key: FEATURE_FLAGS.DISCORD_IMPORT_ENABLED,
+    value: false,
+    description: 'Bật hệ thống nhập liệu từ Discord Thread qua Discord Bot',
+    category: SYSTEM_CONFIG_CATEGORY.FEATURE_FLAG,
+    isPublic: false,
+  },
+  {
+    key: FEATURE_FLAGS.AI_IMPORT_ENABLED,
+    value: false,
+    description: 'Bật AI Worker xử lý phân tích, dịch tên và phân loại keyboard từ Discord Import',
+    category: SYSTEM_CONFIG_CATEGORY.FEATURE_FLAG,
+    isPublic: false,
+  },
+  {
+    key: 'import.ai_confidence_threshold',
+    value: 0.9,
+    description: 'Ngưỡng độ tin cậy AI tối thiểu (0-1) để một Draft được coi là Bulk Approve candidate',
+    category: SYSTEM_CONFIG_CATEGORY.GENERAL,
+    isPublic: false,
+  },
+  {
+    key: 'import.bulk_approve_max',
+    value: 50,
+    description: 'Số lượng Import Job tối đa được phép duyệt cùng lúc trong một thao tác Bulk Approve',
+    category: SYSTEM_CONFIG_CATEGORY.GENERAL,
     isPublic: false,
   },
 ] as const;

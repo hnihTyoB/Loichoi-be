@@ -550,3 +550,98 @@ model CollectionItem {
   @@index([keyboardThemeId])
   @@map("collection_items")
 }
+
+// ===== DISCORD IMPORT SYSTEM =====
+
+model DiscordThread {
+  id                     String      @id @default(uuid()) @db.Uuid
+  discordThreadId        String      @unique @map("discord_thread_id")
+  discordChannelId       String?     @map("discord_channel_id")
+  discordReferenceNumber Int?        @map("discord_reference_number")
+  originalName           String      @map("original_name")
+  createdAtDiscord       DateTime?   @map("created_at_discord")
+  rawData                Json        @map("raw_data")
+  createdAt              DateTime    @default(now()) @map("created_at")
+  updatedAt              DateTime    @updatedAt @map("updated_at")
+  importJobs             ImportJob[]
+
+  @@index([discordReferenceNumber])
+  @@map("discord_threads")
+}
+
+model ImportJob {
+  id              String         @id @default(uuid()) @db.Uuid
+  discordThreadId String         @map("discord_thread_id") @db.Uuid
+  status          String         @default("DISCOVERED")
+  phase           String         @default("COLLECT")
+  retryCount      Int            @default(0) @map("retry_count")
+  lastError       String?        @map("last_error")
+  processedAt     DateTime?      @map("processed_at")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  thread          DiscordThread  @relation(fields: [discordThreadId], references: [id])
+  draft           KeyboardDraft?
+
+  @@index([status])
+  @@index([discordThreadId])
+  @@index([status, createdAt(sort: Desc)])
+  @@map("import_jobs")
+}
+
+model KeyboardDraft {
+  id                    String    @id @default(uuid()) @db.Uuid
+  importJobId           String    @unique @map("import_job_id") @db.Uuid
+
+  // AI-generated fields
+  englishName           String?   @map("english_name")
+  description           String?
+  suggestedCategoryIds  String[]  @default([]) @map("suggested_category_ids")
+  suggestedColorIds     String[]  @default([]) @map("suggested_color_ids")
+  suggestedStyleIds     String[]  @default([]) @map("suggested_style_ids")
+  suggestedTags         Json?     @map("suggested_tags")
+
+  // AI confidence per field (0.0 - 1.0)
+  confidenceName        Float?    @map("confidence_name")
+  confidenceCategory    Float?    @map("confidence_category")
+  confidenceColor       Float?    @map("confidence_color")
+  confidenceStyle       Float?    @map("confidence_style")
+  confidenceDescription Float?    @map("confidence_description")
+
+  // Deterministic parsed fields
+  platform              String?
+  downloadSource        String?   @map("download_source")
+  downloadUrl           String?   @map("download_url")
+  downloadDiscordMsgId  String?   @map("download_discord_msg_id")
+  downloadFileName      String?   @map("download_file_name")
+
+  // Images stored in Cloudflare R2 (NOT Discord CDN)
+  coverUrl              String?   @map("cover_url")
+  previewUrls           String[]  @default([]) @map("preview_urls")
+
+  // Duplicate detection
+  isDuplicateCandidate  Boolean   @default(false) @map("is_duplicate_candidate")
+  duplicateOfId         String?   @map("duplicate_of_id") @db.Uuid
+  duplicateReason       String?   @map("duplicate_reason")
+
+  // Validation flags (JSON array of string flag codes)
+  flags                 Json?
+  validationStatus      String    @default("PENDING") @map("validation_status")
+
+  // Admin review
+  adminNotes            String?   @map("admin_notes")
+  reviewedBy            String?   @map("reviewed_by") @db.Uuid
+  reviewedAt            DateTime? @map("reviewed_at")
+
+  // Linked keyboard after approval
+  keyboardThemeId       String?   @map("keyboard_theme_id") @db.Uuid
+
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+  importJob             ImportJob @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+
+  @@index([validationStatus])
+  @@index([isDuplicateCandidate])
+  @@index([keyboardThemeId])
+  @@index([createdAt(sort: Desc)])
+  @@map("keyboard_drafts")
+}
