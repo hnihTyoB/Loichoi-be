@@ -24,6 +24,7 @@ import {
 } from './discord-import.dto';
 import type { CreateImportJobBody, UpdateDraftBody } from './discord-import.validation';
 import { DiscordImportAIService } from './discord-import-ai.service';
+import { DiscordMediaService } from './discord-media.service';
 
 // ──────────────────────────────────────────────
 // Regex helpers (deterministic parser)
@@ -457,12 +458,31 @@ export class DiscordImportService {
 
     const draft = job.draft;
 
-    // Intelligent Fallbacks for publishing
+    // Intelligent Fallbacks & Permanent Storage in Cloudflare R2
     const englishName = draft.englishName || 'Kawaii Aesthetic Keyboard Theme';
+
+    // Persist Discord images permanently to Cloudflare R2 before publishing
+    const persisted = await DiscordMediaService.persistThemeImages(
+      draft.coverUrl,
+      draft.previewUrls,
+      draft.id,
+    );
+
     const coverUrl =
+      persisted.coverUrl ||
       draft.coverUrl ||
       draft.previewUrls?.[0] ||
       'https://placehold.co/600x600/f8e8ee/6c5b7b.png?text=Kawaii+Keyboard';
+
+    const previewUrls = persisted.previewUrls.length > 0 ? persisted.previewUrls : draft.previewUrls;
+
+    // Update draft with permanent R2 URLs if changed
+    if (persisted.coverUrl && persisted.coverUrl !== draft.coverUrl) {
+      await this.repository.updateDraft(draft.id, {
+        coverUrl: persisted.coverUrl,
+        previewUrls,
+      } as any);
+    }
 
     const jumpLink = `https://discord.com/channels/@me/${job.thread.discordThreadId}`;
 
@@ -503,7 +523,7 @@ export class DiscordImportService {
         categoryIds: catIds,
         colorIds: colIds,
         styleIds: styIds,
-        previewUrls: draft.previewUrls,
+        previewUrls,
         referenceNumber: job.thread.discordReferenceNumber ?? undefined,
       },
       adminId: actorId,
