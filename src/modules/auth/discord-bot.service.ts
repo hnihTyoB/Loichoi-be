@@ -1,4 +1,5 @@
 import { envConfig } from '../../config/env.config';
+import { prisma } from '../../database/prisma.client';
 
 export interface GuildMemberInfo {
   inGuild: boolean;
@@ -91,6 +92,48 @@ export class DiscordBotService {
   }
 
   /**
+   * Lấy số thứ tự thông báo tiếp theo bắt đầu từ 2380
+   */
+  async getNextAnnouncementSequenceNumber(): Promise<number> {
+    const DEFAULT_START_NUMBER = 2380;
+    try {
+      const config = await prisma.systemConfig.findUnique({
+        where: { key: 'keyboard.theme_announcement_sequence' },
+      });
+
+      let currentNumber = DEFAULT_START_NUMBER;
+      if (config && typeof config.value === 'number') {
+        currentNumber = config.value;
+      } else if (config && typeof config.value === 'string' && !isNaN(parseInt(config.value, 10))) {
+        currentNumber = parseInt(config.value, 10);
+      } else {
+        const maxThread = await prisma.discordThread.aggregate({
+          _max: { discordReferenceNumber: true },
+        });
+        currentNumber = Math.max(DEFAULT_START_NUMBER, (maxThread._max.discordReferenceNumber ?? 0) + 1);
+      }
+
+      // Tăng số tiếp theo và lưu vào system_configs
+      await prisma.systemConfig.upsert({
+        where: { key: 'keyboard.theme_announcement_sequence' },
+        update: { value: currentNumber + 1 },
+        create: {
+          key: 'keyboard.theme_announcement_sequence',
+          value: currentNumber + 1,
+          category: 'INTEGRATION',
+          description: 'Số thứ tự phát hành theme thông báo lên Discord tiếp theo',
+          isPublic: false,
+        },
+      });
+
+      return currentNumber;
+    } catch (err) {
+      console.error('[DiscordBotService] Error getting next announcement sequence number:', err);
+      return DEFAULT_START_NUMBER;
+    }
+  }
+
+  /**
    * Bắn thông báo qua Discord khi có Keyboard Theme mới được phát hành
    * Ưu tiên gửi qua Bot Token để hỗ trợ Button Component (Style 5 - Link Button),
    * nếu không có channelId/botToken thì fallback qua Webhook URL.
@@ -102,6 +145,7 @@ export class DiscordBotService {
     description?: string | null;
     platform: string;
     accessLevel: string;
+    sequenceNumber?: number;
   }): Promise<void> {
     const { botToken, channelId, webhookUrl } = envConfig.discord;
     if (!botToken && !webhookUrl) return;
@@ -110,13 +154,32 @@ export class DiscordBotService {
       const themeUrl = `${envConfig.frontendUrl}/keyboards/${theme.slug}`;
       const logoUrl = `${envConfig.frontendUrl}/images/logos/logo_loichoi.png`;
 
+      // 1. Xác định số thứ tự (bắt đầu từ 2379)
+      let seqNumber = theme.sequenceNumber;
+      let cleanName = theme.name;
+
+      // Kiểm tra nếu tên theme đã chứa số thứ tự ở đầu (VD: "#2379 - Name", "2379 ♡ Name", "2379 Name")
+      const matchedNum = theme.name.match(/^(?:#|No\.?|№)?\s*(\d{1,6})\s*[-_♡♥:|\s]\s*(.*)$/i);
+      if (matchedNum && matchedNum[1]) {
+        if (!seqNumber) {
+          seqNumber = parseInt(matchedNum[1], 10);
+        }
+        if (matchedNum[2]) {
+          cleanName = matchedNum[2].trim();
+        }
+      }
+
+      if (!seqNumber) {
+        seqNumber = await this.getNextAnnouncementSequenceNumber();
+      }
+
       const embed = {
         author: {
           name: 'Loichoi Keyboard',
           icon_url: logoUrl,
           url: envConfig.frontendUrl,
         },
-        title: `New Keyboard Theme: ${theme.name}`,
+        title: `New Keyboard Theme: #${seqNumber} - ${cleanName}`,
         url: themeUrl,
         description: theme.description || 'New keyboard theme is ready to download and experience now!',
         color: 0x5865f2, // Discord Blurple
@@ -124,7 +187,7 @@ export class DiscordBotService {
           url: theme.coverUrl,
         },
         footer: {
-          text: 'Loichoi Keyboard Theme Library',
+          text: 'Loichoi Keyboard',
           icon_url: logoUrl,
         },
         timestamp: new Date().toISOString(),
