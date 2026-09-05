@@ -238,26 +238,41 @@ export class RbacRepository {
 
   async findAllAuditLogs(query: AuditLogQueryDto) {
     const { actorId, action, targetType, targetId, startDate, endDate, search, page = 1, limit = 20 } = query;
+    const safeLimit = Math.min(Math.max(1, Number(limit) || 20), 100);
+    const safePage = Math.max(1, Number(page) || 1);
 
     const createdAtFilter: Prisma.DateTimeFilter = {};
     if (startDate) {
-      if (typeof startDate === 'string' && startDate.includes('-') && !startDate.includes('T')) {
-        const { startOfDay } = getVietnamDayRange(startDate);
-        createdAtFilter.gte = startOfDay;
-      } else {
-        createdAtFilter.gte = new Date(startDate);
+      try {
+        if (typeof startDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
+          const { startOfDay } = getVietnamDayRange(startDate);
+          createdAtFilter.gte = startOfDay;
+        } else {
+          const parsed = new Date(startDate);
+          if (!isNaN(parsed.getTime())) {
+            createdAtFilter.gte = parsed;
+          }
+        }
+      } catch {
+        // Bỏ qua giá trị ngày không hợp lệ
       }
     }
     if (endDate) {
-      if (typeof endDate === 'string' && endDate.includes('-') && !endDate.includes('T')) {
-        const { endOfDay } = getVietnamDayRange(endDate);
-        createdAtFilter.lte = endOfDay;
-      } else {
-        const end = new Date(endDate);
-        if (end.getHours() === 0 && end.getMinutes() === 0 && end.getSeconds() === 0 && end.getMilliseconds() === 0) {
-          end.setHours(23, 59, 59, 999);
+      try {
+        if (typeof endDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+          const { endOfDay } = getVietnamDayRange(endDate);
+          createdAtFilter.lte = endOfDay;
+        } else {
+          const end = new Date(endDate);
+          if (!isNaN(end.getTime())) {
+            if (end.getHours() === 0 && end.getMinutes() === 0 && end.getSeconds() === 0 && end.getMilliseconds() === 0) {
+              end.setHours(23, 59, 59, 999);
+            }
+            createdAtFilter.lte = end;
+          }
         }
-        createdAtFilter.lte = end;
+      } catch {
+        // Bỏ qua giá trị ngày không hợp lệ
       }
     }
 
@@ -320,14 +335,14 @@ export class RbacRepository {
         : {}),
     };
 
-    const skip = (page - 1) * limit;
+    const skip = (safePage - 1) * safeLimit;
 
     const [rawLogs, total] = await prisma.$transaction([
       prisma.auditLog.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         skip,
-        take: limit,
+        take: safeLimit,
       }),
       prisma.auditLog.count({ where }),
     ]);

@@ -224,7 +224,9 @@ export class CreatorRepository {
       orderBy = [{ createdAt: 'desc' }];
     }
 
-    const skip = (page - 1) * limit;
+    const safeLimit = Math.min(Math.max(1, Number(limit) || 20), 100);
+    const safePage = Math.max(1, Number(page) || 1);
+    const skip = (safePage - 1) * safeLimit;
 
     let users: Array<{
       id: string;
@@ -262,7 +264,7 @@ export class CreatorRepository {
             ${featuredClause}
           GROUP BY u.id
           ORDER BY COALESCE(SUM(kt.download_count), 0) DESC, u.created_at DESC
-          LIMIT ${limit} OFFSET ${skip};
+          LIMIT ${safeLimit} OFFSET ${skip};
         `,
         prisma.user.count({ where }),
       ]);
@@ -320,7 +322,7 @@ export class CreatorRepository {
           },
           orderBy,
           skip,
-          take: limit,
+          take: safeLimit,
         }),
         prisma.user.count({ where }),
       ]);
@@ -399,9 +401,9 @@ export class CreatorRepository {
       data: dataWithStats,
       meta: {
         total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
+        page: safePage,
+        limit: safeLimit,
+        totalPages: Math.ceil(total / safeLimit),
       },
     };
   }
@@ -457,7 +459,9 @@ export class CreatorRepository {
   }
 
   async getUserFollowingList(userId: string, page = 1, limit = 20) {
-    const skip = (page - 1) * limit;
+    const safeLimit = Math.min(Math.max(1, Number(limit) || 20), 100);
+    const safePage = Math.max(1, Number(page) || 1);
+    const skip = (safePage - 1) * safeLimit;
 
     const where: Prisma.UserFollowWhereInput = {
       followerId: userId,
@@ -468,7 +472,7 @@ export class CreatorRepository {
       prisma.userFollow.findMany({
         where,
         skip,
-        take: limit,
+        take: safeLimit,
         orderBy: { createdAt: 'desc' },
         include: {
           following: {
@@ -579,9 +583,9 @@ export class CreatorRepository {
       data,
       meta: {
         total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
+        page: safePage,
+        limit: safeLimit,
+        totalPages: Math.ceil(total / safeLimit),
       },
     };
   }

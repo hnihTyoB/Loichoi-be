@@ -75,6 +75,11 @@ describe('Comprehensive Remediation Verification (All 17 Audit Findings BL-01 ->
       // Subsequent consumption of already-used state must fail (prevent replay attacks)
       const replayed = await service.verifyAndConsumeState(state, 'test-nonce-123');
       assert.equal(replayed.isValid, false);
+
+      // Omitted nonce cookie must be rejected (prevent CSRF bypass)
+      const stateWithNonce = await service.generateState('https://example.com/callback', 'bound-nonce-999');
+      const bypassAttempt = await service.verifyAndConsumeState(stateWithNonce, undefined);
+      assert.equal(bypassAttempt.isValid, false, 'Omitting nonce cookie must be rejected');
     });
 
     it('[BL-06] getVietnamDayRange should construct exact UTC+7 date boundaries from YYYY-MM-DD', () => {

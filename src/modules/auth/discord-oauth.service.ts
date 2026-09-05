@@ -142,9 +142,11 @@ export class DiscordOAuthService {
       return { isValid: false };
     }
 
-    // Kiểm tra ràng buộc nonce cookie nếu có
-    if (entry.nonce && expectedNonce && entry.nonce !== expectedNonce) {
-      return { isValid: false };
+    // Kiểm tra ràng buộc nonce cookie: Nếu state có nonce thì cookie bắt buộc phải tồn tại và khớp chính xác
+    if (entry.nonce) {
+      if (!expectedNonce || entry.nonce !== expectedNonce) {
+        return { isValid: false };
+      }
     }
 
     return { isValid: true, redirectUri: entry.redirectUri };

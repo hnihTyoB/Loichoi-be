@@ -44,12 +44,12 @@ export class DiscordMediaService {
   /**
    * Thực hiện fetch an toàn với DNS validation, SSRF defense và timeout
    */
-  private static async safeFetch(url: string): Promise<Response | null> {
+  private static async safeFetch(url: string, maxRedirects = 1): Promise<Response | null> {
     const safe = await this.isSafeUrl(url);
     if (!safe) return null;
 
     try {
-      return await fetch(url, {
+      const res = await fetch(url, {
         method: 'GET',
         headers: {
           'User-Agent':
@@ -57,7 +57,28 @@ export class DiscordMediaService {
           Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
         },
         signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
+        redirect: 'manual',
       });
+
+      // Nếu gặp HTTP 3xx Redirect -> Kiểm tra nghiêm ngặt URL đích trước khi theo
+      if (res.status >= 300 && res.status < 400) {
+        if (maxRedirects <= 0) return null;
+        const locationHeader = res.headers.get('location');
+        if (!locationHeader) return null;
+
+        try {
+          const resolvedUrl = new URL(locationHeader, url).toString();
+          const isRedirectSafe = await this.isSafeUrl(resolvedUrl);
+          if (!isRedirectSafe) {
+            return null;
+          }
+          return await this.safeFetch(resolvedUrl, maxRedirects - 1);
+        } catch {
+          return null;
+        }
+      }
+
+      return res;
     } catch {
       return null;
     }

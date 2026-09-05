@@ -4,6 +4,7 @@ import { authMiddleware } from '../../middlewares/auth.middleware';
 import { requirePermission } from '../../middlewares/permission.middleware';
 import { validate } from '../../middlewares/validate.middleware';
 import { PERMISSIONS } from '../../common/constants/permission.constant';
+import { envConfig } from '../../config/env.config';
 import {
   CreateImportJobSchema,
   ListImportJobsQuerySchema,
@@ -25,13 +26,15 @@ router.post(
   controller.createImportJob,
 );
 
-// DELETE /api/v1/imports/reset — Purge all import jobs and threads for clean testing
-router.delete(
-  '/reset',
-  authMiddleware,
-  requirePermission(PERMISSIONS.IMPORT_MANAGE),
-  controller.resetAllImports,
-);
+// DELETE /api/v1/imports/reset — Purge all import jobs and threads for clean testing (Disabled in production)
+if (envConfig.nodeEnv !== 'production') {
+  router.delete(
+    '/reset',
+    authMiddleware,
+    requirePermission(PERMISSIONS.IMPORT_MANAGE),
+    controller.resetAllImports,
+  );
+}
 
 // POST /api/v1/imports/bulk-approve — Bulk approve (must be before /:id routes)
 router.post(
