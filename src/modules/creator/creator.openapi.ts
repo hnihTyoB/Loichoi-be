@@ -1,6 +1,11 @@
 import { openapiRegistry, PaginationMetaSchema } from '../../config/openapi/openapi.registry';
-import { usernameParamSchema, creatorQuerySchema } from './creator.validation';
-import { keyboardPublicQuerySchema } from '../keyboard/keyboard.validation';
+import {
+  usernameParamSchema,
+  creatorQuerySchema,
+  creatorApplicationQuerySchema,
+  rejectCreatorApplicationSchema,
+} from './creator.validation';
+import { keyboardPublicQuerySchema, userIdParamSchema } from '../keyboard/keyboard.validation';
 import { z } from 'zod';
 
 const CreatorStatsSchema = z.object({
@@ -194,6 +199,128 @@ export function registerCreatorOpenApi(): void {
       404: {
         description: 'Creator không tồn tại',
       },
+    },
+  });
+
+  // 6. GET /creators/manage/applications (Admin)
+  openapiRegistry.registerPath({
+    method: 'get',
+    path: '/creators/manage/applications',
+    tags: ['Creators'],
+    summary: 'Danh sách đơn đăng ký trở thành Creator (Yêu cầu quyền CREATOR_MANAGE)',
+    security: [{ BearerAuth: [] }],
+    request: { query: creatorApplicationQuerySchema },
+    responses: {
+      200: {
+        description: 'Lấy danh sách đơn đăng ký thành công',
+        content: {
+          'application/json': {
+            schema: z.object({
+              success: z.boolean().openapi({ example: true }),
+              data: z.array(
+                z.object({
+                  id: z.string().uuid(),
+                  userId: z.string().uuid(),
+                  status: z.enum(['PENDING', 'APPROVED', 'REJECTED']),
+                  portfolioUrl: z.string().url().nullable(),
+                  socialLinks: z.record(z.string()).nullable(),
+                  bio: z.string().nullable(),
+                  adminNotes: z.string().nullable(),
+                  reviewedAt: z.string().datetime().nullable(),
+                  createdAt: z.string().datetime(),
+                  user: z.object({
+                    id: z.string().uuid(),
+                    email: z.string().email(),
+                    fullName: z.string().nullable(),
+                    username: z.string().nullable(),
+                    avatarUrl: z.string().url().nullable(),
+                  }),
+                }),
+              ),
+              meta: PaginationMetaSchema,
+            }),
+          },
+        },
+      },
+    },
+  });
+
+  // 7. POST /creators/manage/applications/:userId/approve (Admin)
+  openapiRegistry.registerPath({
+    method: 'post',
+    path: '/creators/manage/applications/{userId}/approve',
+    tags: ['Creators'],
+    summary: 'Duyệt đơn đăng ký Creator và cấp quyền (Yêu cầu quyền CREATOR_MANAGE)',
+    security: [{ BearerAuth: [] }],
+    request: { params: userIdParamSchema },
+    responses: {
+      200: {
+        description: 'Duyệt đơn đăng ký thành công',
+        content: {
+          'application/json': {
+            schema: z.object({
+              success: z.boolean().openapi({ example: true }),
+              message: z.string().openapi({ example: 'Đã duyệt đơn đăng ký Creator thành công' }),
+            }),
+          },
+        },
+      },
+      404: { description: 'Không tìm thấy đơn đăng ký' },
+    },
+  });
+
+  // 8. POST /creators/manage/applications/:userId/reject (Admin)
+  openapiRegistry.registerPath({
+    method: 'post',
+    path: '/creators/manage/applications/{userId}/reject',
+    tags: ['Creators'],
+    summary: 'Từ chối đơn đăng ký Creator (Yêu cầu quyền CREATOR_MANAGE)',
+    security: [{ BearerAuth: [] }],
+    request: {
+      params: userIdParamSchema,
+      body: {
+        content: {
+          'application/json': { schema: rejectCreatorApplicationSchema },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: 'Từ chối đơn đăng ký thành công',
+        content: {
+          'application/json': {
+            schema: z.object({
+              success: z.boolean().openapi({ example: true }),
+              message: z.string().openapi({ example: 'Đã từ chối đơn đăng ký Creator' }),
+            }),
+          },
+        },
+      },
+      404: { description: 'Không tìm thấy đơn đăng ký' },
+    },
+  });
+
+  // 9. POST /creators/manage/creators/:userId/revoke (Admin)
+  openapiRegistry.registerPath({
+    method: 'post',
+    path: '/creators/manage/creators/{userId}/revoke',
+    tags: ['Creators'],
+    summary: 'Thu hồi tư cách Creator của người dùng (Yêu cầu quyền CREATOR_MANAGE)',
+    security: [{ BearerAuth: [] }],
+    request: { params: userIdParamSchema },
+    responses: {
+      200: {
+        description: 'Thu hồi tư cách Creator thành công',
+        content: {
+          'application/json': {
+            schema: z.object({
+              success: z.boolean().openapi({ example: true }),
+              message: z.string().openapi({ example: 'Đã thu hồi tư cách Creator của người dùng' }),
+            }),
+          },
+        },
+      },
+      404: { description: 'Không tìm thấy người dùng' },
     },
   });
 }

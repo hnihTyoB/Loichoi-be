@@ -7,6 +7,7 @@ import {
   collectionThemeParamSchema,
   addCollectionThemeSchema,
   collectionQuerySchema,
+  collectionManagementQuerySchema,
 } from './collection.validation';
 import { z } from 'zod';
 
@@ -241,6 +242,44 @@ export function registerCollectionOpenApi(): void {
       },
       404: {
         description: 'Theme không tồn tại trong bộ sưu tập',
+      },
+    },
+  });
+
+  // 8. GET /collections/manage (Management list)
+  openapiRegistry.registerPath({
+    method: 'get',
+    path: '/collections/manage',
+    tags: ['Collections'],
+    summary: 'Danh sách quản trị bộ sưu tập (Yêu cầu quyền COLLECTION_READ)',
+    security: [{ BearerAuth: [] }],
+    request: { query: collectionManagementQuerySchema },
+    responses: {
+      200: {
+        description: 'Lấy danh sách bộ sưu tập quản trị thành công',
+        content: {
+          'application/json': {
+            schema: z.object({
+              success: z.boolean().openapi({ example: true }),
+              data: z.array(
+                z.object({
+                  id: z.string().uuid(),
+                  name: z.string(),
+                  slug: z.string(),
+                  description: z.string().nullable(),
+                  coverUrl: z.string().url().nullable(),
+                  isPublic: z.boolean(),
+                  isFeatured: z.boolean(),
+                  creator: CreatorSummarySchema,
+                  itemsCount: z.number().int(),
+                  createdAt: z.string().datetime(),
+                  updatedAt: z.string().datetime(),
+                }),
+              ),
+              meta: PaginationMetaSchema,
+            }),
+          },
+        },
       },
     },
   });

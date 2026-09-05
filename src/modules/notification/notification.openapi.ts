@@ -8,8 +8,10 @@ import {
   updateNotificationTemplateSchema,
   templateCodeParamSchema,
   previewNotificationTemplateSchema,
+  testSendNotificationTemplateSchema,
   listNotificationTemplatesSchema,
   listEmailsSchema,
+  emailIdParamSchema,
 } from './notification.validation';
 import { z } from 'zod';
 
@@ -456,6 +458,61 @@ export function registerNotificationOpenApi(): void {
           },
         },
       },
+    },
+  });
+
+  // POST /notifications/emails/:id/retry
+  openapiRegistry.registerPath({
+    method: 'post',
+    path: '/notifications/emails/{id}/retry',
+    tags: ['Email Notifications'],
+    summary: 'Thử gửi lại email thất bại (Yêu cầu quyền NOTIFICATION_UPDATE)',
+    security: [{ BearerAuth: [] }],
+    request: { params: emailIdParamSchema },
+    responses: {
+      200: {
+        description: 'Đã đưa email vào hàng đợi thử lại',
+        content: {
+          'application/json': {
+            schema: z.object({
+              success: z.boolean().openapi({ example: true }),
+              message: z.string().openapi({ example: 'Đã đưa email vào hàng đợi gửi lại' }),
+            }),
+          },
+        },
+      },
+      404: { description: 'Không tìm thấy email' },
+    },
+  });
+
+  // POST /notifications/templates/:code/test-send
+  openapiRegistry.registerPath({
+    method: 'post',
+    path: '/notifications/templates/{code}/test-send',
+    tags: ['Notification Templates'],
+    summary: 'Gửi thử nghiệm mẫu thông báo đến người nhận mẫu (Yêu cầu quyền NOTIFICATION_TEMPLATE_MANAGE)',
+    security: [{ BearerAuth: [] }],
+    request: {
+      params: templateCodeParamSchema,
+      body: {
+        content: {
+          'application/json': { schema: testSendNotificationTemplateSchema },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: 'Gửi thử nghiệm thông báo thành công',
+        content: {
+          'application/json': {
+            schema: z.object({
+              success: z.boolean().openapi({ example: true }),
+              message: z.string().openapi({ example: 'Đã gửi thử nghiệm mẫu thông báo thành công' }),
+            }),
+          },
+        },
+      },
+      404: { description: 'Không tìm thấy mẫu thông báo' },
     },
   });
 }

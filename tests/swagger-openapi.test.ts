@@ -5,7 +5,7 @@ import { swaggerSpec, swaggerOptions } from '../src/config/swagger.config';
 describe('Auto Swagger OpenAPI Generation via zod-to-openapi', () => {
   it('should generate valid OpenAPI 3.0.0 root document', () => {
     assert.equal(swaggerSpec.openapi, '3.0.0');
-    assert.equal(swaggerSpec.info.title, 'Backend REST API');
+    assert.equal(swaggerSpec.info.title, 'KeyboardHub API');
     assert.equal(swaggerSpec.info.version, '1.0.0');
     assert.ok(Array.isArray(swaggerSpec.servers));
     assert.equal(swaggerSpec.servers[0].url, '/api/v1');
@@ -42,6 +42,7 @@ describe('Auto Swagger OpenAPI Generation via zod-to-openapi', () => {
     assert.ok(schemas.CreateWebhookRequest);
     assert.ok(schemas.CreateSystemConfigRequest);
     assert.ok(schemas.TriggerCronJobRequest);
+    assert.ok(schemas.BulkDeleteKeyboardRequest);
   });
 
   it('should contain all module routes across Auth, Users, RBAC, Notifications, Maintenance, Integrations, System Config, Cron, and Health', () => {
@@ -56,10 +57,16 @@ describe('Auto Swagger OpenAPI Generation via zod-to-openapi', () => {
     assert.ok(paths['/auth/logout']);
     assert.ok(paths['/auth/sessions']);
     assert.ok(paths['/auth/avatar/upload-url']);
+    assert.ok(paths['/auth/devices']);
+    assert.ok(paths['/auth/devices/{id}']);
+    assert.ok(paths['/auth/discord']);
+    assert.ok(paths['/auth/discord/callback']);
 
     // User paths
     assert.ok(paths['/users']);
     assert.ok(paths['/users/{id}']);
+    assert.ok(paths['/users/{id}/sessions']);
+    assert.ok(paths['/users/{id}/devices']);
 
     // RBAC paths
     assert.ok(paths['/rbac/roles']);
@@ -71,10 +78,13 @@ describe('Auto Swagger OpenAPI Generation via zod-to-openapi', () => {
     assert.ok(paths['/notifications']);
     assert.ok(paths['/notifications/templates']);
     assert.ok(paths['/notifications/emails']);
+    assert.ok(paths['/notifications/emails/{id}/retry']);
+    assert.ok(paths['/notifications/templates/{code}/test-send']);
     assert.ok(paths['/notifications/stream']);
 
     // Maintenance paths
     assert.ok(paths['/maintenance/public']);
+    assert.ok(paths['/maintenance/status']);
     assert.ok(paths['/maintenance/config']);
     assert.ok(paths['/maintenance/enable']);
     assert.ok(paths['/maintenance/disable']);
@@ -97,8 +107,27 @@ describe('Auto Swagger OpenAPI Generation via zod-to-openapi', () => {
     assert.ok(paths['/health']);
     assert.ok(paths['/health/readiness']);
     assert.ok(paths['/health/liveness']);
-  });
 
+    // Platform domain modules paths
+    assert.ok(paths['/categories']);
+    assert.ok(paths['/categories/manage']);
+    assert.ok(paths['/colors']);
+    assert.ok(paths['/colors/manage']);
+    assert.ok(paths['/styles']);
+    assert.ok(paths['/styles/manage']);
+    assert.ok(paths['/keyboards']);
+    assert.ok(paths['/keyboards/manage']);
+    assert.ok(paths['/keyboards/manage/bulk-delete']);
+    assert.ok(paths['/creators']);
+    assert.ok(paths['/creators/manage/applications']);
+    assert.ok(paths['/collections']);
+    assert.ok(paths['/collections/manage']);
+    assert.ok(paths['/studio/stats']);
+    assert.ok(paths['/studio/themes']);
+    assert.ok(paths['/studio/upload-url']);
+    assert.ok(paths['/imports']);
+    assert.ok(paths['/imports/bulk-approve']);
+  });
 
   it('should export valid swaggerOptions configuration for Swagger UI', () => {
     assert.equal(swaggerOptions.customSiteTitle, 'KeyboardHub API Documentation');

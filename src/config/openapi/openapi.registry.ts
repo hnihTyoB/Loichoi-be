@@ -75,13 +75,11 @@ export function buildOpenApiSpec(): Record<string, any> {
   return generator.generateDocument({
     openapi: '3.0.0',
     info: {
-
-
-      title: 'Backend REST API',
+      title: 'KeyboardHub API',
       version: '1.0.0',
       description:
-        'Backend REST API Template (NodeJS, Express, TypeScript, Prisma, PostgreSQL). Cung cấp hệ thống xác thực, quản lý người dùng, Dynamic RBAC, Chế độ bảo trì hệ thống, Integrations & Webhooks, và System Configuration.',
-      contact: { name: 'Development Team' },
+        'KeyboardHub & Community Platform REST API (NodeJS, Express, TypeScript, Prisma, PostgreSQL). Nền tảng chia sẻ giao diện bàn phím (Keyboard Themes), Creator Studio, Bộ sưu tập, Dynamic RBAC, Discord Integration, Hệ thống cấu hình động và giám sát vận hành.',
+      contact: { name: 'KeyboardHub Development Team' },
     },
     servers: [{ url: '/api/v1', description: 'API v1 Root' }],
   });

@@ -11,6 +11,7 @@ import {
   resetPasswordSchema,
   resendVerificationSchema,
   sessionIdParamSchema,
+  deviceIdParamSchema,
   getAvatarUploadUrlSchema,
   confirmAvatarUploadSchema,
   revokeOtherSessionsSchema,
@@ -519,6 +520,101 @@ export function registerAuthOpenApi(): void {
           },
         },
       },
+    },
+  });
+
+  // GET /auth/devices
+  openapiRegistry.registerPath({
+    method: 'get',
+    path: '/auth/devices',
+    tags: ['Auth'],
+    summary: 'Danh sách thiết bị đăng nhập của người dùng hiện tại',
+    security: [{ BearerAuth: [] }],
+    responses: {
+      200: {
+        description: 'Lấy danh sách thiết bị thành công',
+        content: {
+          'application/json': {
+            schema: z.object({
+              success: z.boolean().openapi({ example: true }),
+              data: z.array(
+                z.object({
+                  id: z.string().uuid(),
+                  deviceId: z.string(),
+                  deviceName: z.string().nullable(),
+                  deviceType: z.string().nullable(),
+                  os: z.string().nullable(),
+                  browser: z.string().nullable(),
+                  ipAddress: z.string().nullable(),
+                  lastActiveAt: z.string().datetime(),
+                  createdAt: z.string().datetime(),
+                }),
+              ),
+            }),
+          },
+        },
+      },
+    },
+  });
+
+  // DELETE /auth/devices/:id
+  openapiRegistry.registerPath({
+    method: 'delete',
+    path: '/auth/devices/{id}',
+    tags: ['Auth'],
+    summary: 'Xóa / Gỡ bỏ thiết bị đăng nhập của người dùng',
+    security: [{ BearerAuth: [] }],
+    request: {
+      params: deviceIdParamSchema,
+    },
+    responses: {
+      200: {
+        description: 'Xóa thiết bị thành công',
+        content: {
+          'application/json': {
+            schema: z.object({
+              success: z.boolean().openapi({ example: true }),
+              message: z.string().openapi({ example: 'Đã xóa thiết bị đăng nhập' }),
+            }),
+          },
+        },
+      },
+      404: { description: 'Thiết bị không tồn tại' },
+    },
+  });
+
+  // GET /auth/discord
+  openapiRegistry.registerPath({
+    method: 'get',
+    path: '/auth/discord',
+    tags: ['Auth'],
+    summary: 'Khởi tạo đăng nhập / liên kết tài khoản Discord qua OAuth2',
+    description: 'Chuyển hướng người dùng đến trang xác thực Discord Authorization URL với scope identify, email, guilds, guilds.members.read.',
+    responses: {
+      302: {
+        description: 'Chuyển hướng đến Discord Authorization URL',
+      },
+    },
+  });
+
+  // GET /auth/discord/callback
+  openapiRegistry.registerPath({
+    method: 'get',
+    path: '/auth/discord/callback',
+    tags: ['Auth'],
+    summary: 'Xử lý callback từ Discord OAuth2',
+    description: 'Nhận authorization code và state từ Discord, xác thực state/nonce phân tán và thiết lập phiên đăng nhập.',
+    request: {
+      query: z.object({
+        code: z.string().openapi({ example: 'discord_auth_code_sample' }),
+        state: z.string().openapi({ example: 'state_hash_token_sample' }),
+      }),
+    },
+    responses: {
+      302: {
+        description: 'Đăng nhập thành công và chuyển hướng về frontend với token cookie',
+      },
+      400: { description: 'State hoặc OAuth code không hợp lệ' },
     },
   });
 }

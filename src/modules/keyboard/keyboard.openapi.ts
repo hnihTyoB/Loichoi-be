@@ -8,6 +8,7 @@ import {
   keyboardManagementQuerySchema,
   getThemeImageUploadUrlSchema,
   getThemeBatchImageUploadUrlsSchema,
+  bulkDeleteKeyboardSchema,
 } from './keyboard.validation';
 import { z } from 'zod';
 
@@ -529,6 +530,48 @@ export function registerKeyboardOpenApi(): void {
                     expiresIn: z.number().int(),
                   }),
                 ),
+              }),
+            }),
+          },
+        },
+      },
+    },
+  });
+
+  // 14. POST /keyboards/manage/bulk-delete (Bulk delete themes)
+  openapiRegistry.register('BulkDeleteKeyboardRequest', bulkDeleteKeyboardSchema);
+  openapiRegistry.registerPath({
+    method: 'post',
+    path: '/keyboards/manage/bulk-delete',
+    tags: ['Keyboard Themes'],
+    summary: 'Xóa hàng loạt giao diện bàn phím (Yêu cầu quyền KEYBOARD_DELETE)',
+    security: [{ BearerAuth: [] }],
+    request: {
+      body: {
+        content: {
+          'application/json': {
+            schema: bulkDeleteKeyboardSchema,
+          },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: 'Xóa hàng loạt thành công',
+        content: {
+          'application/json': {
+            schema: z.object({
+              success: z.boolean().openapi({ example: true }),
+              data: z.object({
+                succeeded: z.array(z.string().uuid()),
+                failed: z.array(
+                  z.object({
+                    id: z.string(),
+                    reason: z.string(),
+                  }),
+                ),
+                totalRequested: z.number().int(),
+                totalDeleted: z.number().int(),
               }),
             }),
           },

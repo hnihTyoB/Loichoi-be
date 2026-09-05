@@ -6,7 +6,7 @@ import {
   studioCreateThemeSchema,
   studioUpdateThemeSchema,
 } from './studio.validation';
-import { keyboardIdParamSchema } from '../keyboard/keyboard.validation';
+import { keyboardIdParamSchema, getThemeImageUploadUrlSchema } from '../keyboard/keyboard.validation';
 import { z } from 'zod';
 
 export function registerStudioOpenApi(): void {
@@ -223,6 +223,42 @@ export function registerStudioOpenApi(): void {
       },
       409: {
         description: 'Username đã có người sử dụng',
+      },
+    },
+  });
+
+  // 8. POST /studio/upload-url
+  openapiRegistry.registerPath({
+    method: 'post',
+    path: '/studio/upload-url',
+    tags: ['Creator Studio'],
+    summary: 'Lấy presigned URL tải ảnh theme trực tiếp lên R2 dành cho Creator Studio',
+    security: [{ BearerAuth: [] }],
+    request: {
+      body: {
+        content: {
+          'application/json': {
+            schema: getThemeImageUploadUrlSchema,
+          },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: 'Lấy presigned URL thành công',
+        content: {
+          'application/json': {
+            schema: z.object({
+              success: z.boolean().openapi({ example: true }),
+              data: z.object({
+                uploadUrl: z.string().url(),
+                publicUrl: z.string().url(),
+                key: z.string(),
+                expiresIn: z.number().int(),
+              }),
+            }),
+          },
+        },
       },
     },
   });
