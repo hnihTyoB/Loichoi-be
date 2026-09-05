@@ -32,3 +32,8 @@ export const creatorApplicationQuerySchema = z.object({
 export const rejectCreatorApplicationSchema = z.object({
   reason: z.string().max(500, 'Lý do từ chối tối đa 500 ký tự').optional(),
 });
+
+export const creatorFollowingQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});

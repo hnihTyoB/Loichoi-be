@@ -3,31 +3,31 @@ import assert from 'node:assert/strict';
 import { discordOAuthService } from '../src/modules/auth/discord-oauth.service';
 
 describe('Discord OAuth Service & Security Verification', () => {
-  it('should generate secure CSRF state and verify it only once (One-time token)', () => {
-    const state = discordOAuthService.generateState('http://localhost:3000/custom-callback');
+  it('should generate secure CSRF state and verify it only once (One-time token)', async () => {
+    const state = await discordOAuthService.generateState('http://localhost:3000/custom-callback');
     assert.ok(state.length >= 32);
 
     // 1st verification should succeed
-    const firstVerify = discordOAuthService.verifyAndConsumeState(state);
+    const firstVerify = await discordOAuthService.verifyAndConsumeState(state);
     assert.equal(firstVerify.isValid, true);
     assert.equal(firstVerify.redirectUri, 'http://localhost:3000/custom-callback');
 
     // 2nd verification must fail (Replay attack defense)
-    const secondVerify = discordOAuthService.verifyAndConsumeState(state);
+    const secondVerify = await discordOAuthService.verifyAndConsumeState(state);
     assert.equal(secondVerify.isValid, false);
   });
 
-  it('should enforce nonce cookie binding to protect against Login CSRF / Session Fixation', () => {
+  it('should enforce nonce cookie binding to protect against Login CSRF / Session Fixation', async () => {
     const nonce = 'browser_secret_nonce_123';
-    const state = discordOAuthService.generateState('http://localhost:3000/callback', nonce);
+    const state = await discordOAuthService.generateState('http://localhost:3000/callback', nonce);
 
     // Mismatched nonce should fail
-    const mismatchedVerify = discordOAuthService.verifyAndConsumeState(state, 'wrong_attacker_nonce');
+    const mismatchedVerify = await discordOAuthService.verifyAndConsumeState(state, 'wrong_attacker_nonce');
     assert.equal(mismatchedVerify.isValid, false);
 
     // Correct nonce should succeed on fresh state
-    const freshState = discordOAuthService.generateState('http://localhost:3000/callback', nonce);
-    const validVerify = discordOAuthService.verifyAndConsumeState(freshState, nonce);
+    const freshState = await discordOAuthService.generateState('http://localhost:3000/callback', nonce);
+    const validVerify = await discordOAuthService.verifyAndConsumeState(freshState, nonce);
     assert.equal(validVerify.isValid, true);
   });
 

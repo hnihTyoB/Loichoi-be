@@ -51,7 +51,6 @@ model User {
 
   @@index([roleId])
   @@index([deletedAt])
-  @@index([username])
   @@index([isCreator])
   @@index([creatorStatus])
   @@map("users")
@@ -139,6 +138,7 @@ model UserSocial {
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerUserId])
+  @@index([userId])
   @@map("user_socials")
 }
 
@@ -273,7 +273,6 @@ model ApiKey {
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-  @@index([keyHash])
   @@index([isActive])
   @@map("api_keys")
 }
@@ -384,7 +383,6 @@ model KeyboardImage {
   theme           KeyboardTheme @relation(fields: [keyboardThemeId], references: [id], onDelete: Cascade)
 
   @@unique([keyboardThemeId, position])
-  @@index([keyboardThemeId])
   @@map("keyboard_images")
 }
 
@@ -415,7 +413,6 @@ model KeyboardThemeCategory {
   theme           KeyboardTheme @relation(fields: [keyboardThemeId], references: [id], onDelete: Cascade)
 
   @@unique([keyboardThemeId, categoryId])
-  @@index([keyboardThemeId])
   @@index([categoryId])
   @@map("keyboard_theme_categories")
 }
@@ -441,7 +438,6 @@ model KeyboardColor {
   theme           KeyboardTheme @relation(fields: [keyboardThemeId], references: [id], onDelete: Cascade)
 
   @@unique([keyboardThemeId, colorId])
-  @@index([keyboardThemeId])
   @@index([colorId])
   @@map("keyboard_colors")
 }
@@ -467,7 +463,6 @@ model KeyboardStyle {
   theme           KeyboardTheme @relation(fields: [keyboardThemeId], references: [id], onDelete: Cascade)
 
   @@unique([keyboardThemeId, styleId])
-  @@index([keyboardThemeId])
   @@index([styleId])
   @@map("keyboard_styles")
 }
@@ -497,7 +492,6 @@ model KeyboardLike {
   theme           KeyboardTheme @relation(fields: [keyboardThemeId], references: [id], onDelete: Cascade)
 
   @@unique([userId, keyboardThemeId])
-  @@index([userId])
   @@index([keyboardThemeId])
   @@map("keyboard_likes")
 }
@@ -511,7 +505,6 @@ model UserFollow {
   following   User     @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
 
   @@unique([followerId, followingId])
-  @@index([followerId])
   @@index([followingId])
   @@map("user_follows")
 }
@@ -532,7 +525,6 @@ model Collection {
 
   @@index([userId])
   @@index([isPublic, isFeatured])
-  @@index([slug])
   @@map("collections")
 }
 
@@ -546,7 +538,6 @@ model CollectionItem {
   theme           KeyboardTheme @relation(fields: [keyboardThemeId], references: [id], onDelete: Cascade)
 
   @@unique([collectionId, keyboardThemeId])
-  @@index([collectionId])
   @@index([keyboardThemeId])
   @@map("collection_items")
 }

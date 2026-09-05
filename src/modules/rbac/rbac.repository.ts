@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../database/prisma.client';
 import { RoleQueryDto, AuditLogQueryDto } from './rbac.dto';
+import { getVietnamDayRange } from '../../common/helpers/date.helper';
 
 export class RbacRepository {
   async findAllRoles(query: RoleQueryDto) {
@@ -240,14 +241,24 @@ export class RbacRepository {
 
     const createdAtFilter: Prisma.DateTimeFilter = {};
     if (startDate) {
-      createdAtFilter.gte = new Date(startDate);
+      if (typeof startDate === 'string' && startDate.includes('-') && !startDate.includes('T')) {
+        const { startOfDay } = getVietnamDayRange(startDate);
+        createdAtFilter.gte = startOfDay;
+      } else {
+        createdAtFilter.gte = new Date(startDate);
+      }
     }
     if (endDate) {
-      const end = new Date(endDate);
-      if (end.getHours() === 0 && end.getMinutes() === 0 && end.getSeconds() === 0 && end.getMilliseconds() === 0) {
-        end.setHours(23, 59, 59, 999);
+      if (typeof endDate === 'string' && endDate.includes('-') && !endDate.includes('T')) {
+        const { endOfDay } = getVietnamDayRange(endDate);
+        createdAtFilter.lte = endOfDay;
+      } else {
+        const end = new Date(endDate);
+        if (end.getHours() === 0 && end.getMinutes() === 0 && end.getSeconds() === 0 && end.getMilliseconds() === 0) {
+          end.setHours(23, 59, 59, 999);
+        }
+        createdAtFilter.lte = end;
       }
-      createdAtFilter.lte = end;
     }
 
     let matchingActorIds: string[] = [];

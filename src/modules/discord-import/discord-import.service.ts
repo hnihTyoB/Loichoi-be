@@ -10,7 +10,8 @@ import {
   DEFAULT_BULK_APPROVE_MAX,
 } from '../../common/constants/import.constant';
 import { toSlug } from '../../common/helpers/slug.helper';
-import { prisma as db } from '../../database/prisma.client';
+import { envConfig } from '../../config/env.config';
+import { isThemeDownloadUrl } from '../../common/constants/keyboard.constant';
 import {
   CreateImportJobPayload,
   UpdateDraftPayload,
@@ -62,7 +63,6 @@ function cleanTitle(raw: string): string {
 
 export class DiscordImportService {
   private readonly repository = new DiscordImportRepository();
-  private readonly prisma = db;
 
   // ──────────────────────────────────────────────
   // 1. Create Import Job (idempotent by discordThreadId)
@@ -443,10 +443,7 @@ export class DiscordImportService {
 
     // Idempotency: already imported
     if (job.status === IMPORT_JOB_STATUS.IMPORTED && job.draft?.keyboardThemeId) {
-      const keyboard = await this.prisma.keyboardTheme.findUnique({
-        where: { id: job.draft.keyboardThemeId },
-        select: { id: true, slug: true },
-      });
+      const keyboard = await this.repository.findKeyboardById(job.draft.keyboardThemeId);
       if (keyboard) {
         return { importJobId, keyboardThemeId: keyboard.id, slug: keyboard.slug };
       }
@@ -484,9 +481,15 @@ export class DiscordImportService {
       } as any);
     }
 
-    const jumpLink = `https://discord.com/channels/@me/${job.thread.discordThreadId}`;
+    if (!draft.downloadUrl || !isThemeDownloadUrl(draft.downloadUrl)) {
+      throw new AppError(
+        'Bản nháp cần có liên kết tải hợp lệ (Google Drive hoặc Discord attachment) trước khi phê duyệt',
+        400,
+        ERROR_CODE.VALIDATION_ERROR,
+      );
+    }
 
-    const downloadUrl = draft.downloadUrl || jumpLink;
+    const downloadUrl = draft.downloadUrl;
 
     // Build unique slug
     const baseSlug = toSlug(englishName);
@@ -497,17 +500,11 @@ export class DiscordImportService {
     let colIds = draft.suggestedColorIds;
     let styIds = draft.suggestedStyleIds;
 
-    if (!catIds || catIds.length === 0) {
-      const defaultCat = await this.prisma.category.findFirst({ select: { id: true } });
-      catIds = defaultCat ? [defaultCat.id] : [];
-    }
-    if (!colIds || colIds.length === 0) {
-      const defaultCols = await this.prisma.color.findMany({ take: 2, select: { id: true } });
-      colIds = defaultCols.map((c) => c.id);
-    }
-    if (!styIds || styIds.length === 0) {
-      const defaultSty = await this.prisma.style.findFirst({ select: { id: true } });
-      styIds = defaultSty ? [defaultSty.id] : [];
+    if (!catIds || catIds.length === 0 || !colIds || colIds.length === 0 || !styIds || styIds.length === 0) {
+      const defaultTax = await this.repository.getDefaultTaxonomies();
+      if (!catIds || catIds.length === 0) catIds = defaultTax.defaultCategoryId ? [defaultTax.defaultCategoryId] : [];
+      if (!colIds || colIds.length === 0) colIds = defaultTax.defaultColorIds;
+      if (!styIds || styIds.length === 0) styIds = defaultTax.defaultStyleId ? [defaultTax.defaultStyleId] : [];
     }
 
     const result = await this.repository.approveAndPublish({
@@ -580,17 +577,19 @@ export class DiscordImportService {
   // ──────────────────────────────────────────────
 
   async resetAllImports(actorId: string): Promise<{ deletedCount: number }> {
-    const drafts = await this.prisma.keyboardDraft.deleteMany({});
-    const jobs = await this.prisma.importJob.deleteMany({});
-    const threads = await this.prisma.discordThread.deleteMany({});
+    if (envConfig.nodeEnv === 'production') {
+      throw new AppError('Chức năng reset dữ liệu import bị vô hiệu hóa trên môi trường Production', 403, ERROR_CODE.FORBIDDEN);
+    }
+
+    const result = await this.repository.resetAllImports();
 
     await this.auditLog(actorId, AUDIT_ACTION.CREATE_IMPORT_JOB, AUDIT_TARGET_TYPE.IMPORT_JOB, 'RESET_ALL', {
-      draftsDeleted: drafts.count,
-      jobsDeleted: jobs.count,
-      threadsDeleted: threads.count,
+      draftsDeleted: result.draftsDeleted,
+      jobsDeleted: result.jobsDeleted,
+      threadsDeleted: result.threadsDeleted,
     });
 
-    return { deletedCount: jobs.count };
+    return { deletedCount: result.jobsDeleted };
   }
 
   // ──────────────────────────────────────────────
@@ -659,7 +658,7 @@ export class DiscordImportService {
     let slug = base;
     let suffix = 0;
     while (true) {
-      const existing = await this.prisma.keyboardTheme.findUnique({ where: { slug } });
+      const existing = await this.repository.findKeyboardBySlug(slug);
       if (!existing) return slug;
       suffix++;
       slug = `${base}-${suffix}`;
@@ -673,14 +672,12 @@ export class DiscordImportService {
     targetId: string,
     details?: object,
   ): Promise<void> {
-    await this.prisma.auditLog.create({
-      data: {
-        actorId,
-        action,
-        targetType,
-        targetId,
-        details: details ?? {},
-      },
+    await this.repository.createAuditLog({
+      actorId,
+      action,
+      targetType,
+      targetId,
+      details: details ?? {},
     });
   }
 }

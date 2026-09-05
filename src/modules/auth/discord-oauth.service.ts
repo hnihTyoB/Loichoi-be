@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import IORedis from 'ioredis';
 import { envConfig } from '../../config/env.config';
 import { AppError } from '../../common/errors/app-error';
 import { ERROR_CODE } from '../../common/errors/error-code';
@@ -13,36 +14,129 @@ export interface DiscordUserProfile {
   verified?: boolean;
 }
 
+interface OAuthStateEntry {
+  createdAt: number;
+  redirectUri?: string;
+  nonce?: string;
+}
+
+const isTestEnv =
+  process.env.NODE_ENV === 'test' ||
+  process.argv.some((arg) => arg.includes('test')) ||
+  process.env.npm_lifecycle_event === 'test';
+
 export class DiscordOAuthService {
-  private static readonly stateMap = new Map<string, { createdAt: number; redirectUri?: string; nonce?: string }>();
-  private static readonly STATE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+  private static readonly stateMap = new Map<string, OAuthStateEntry>();
+  private static readonly STATE_TTL_SECONDS = 5 * 60; // 5 minutes
+  private static readonly STATE_TTL_MS = DiscordOAuthService.STATE_TTL_SECONDS * 1000;
+  private redisClient?: IORedis;
+  private isRedisAvailable = false;
+
+  constructor() {
+    if (!isTestEnv && envConfig.redis.enabled) {
+      this.initRedis();
+    }
+  }
+
+  private initRedis(): void {
+    try {
+      this.redisClient = new IORedis({
+        host: envConfig.redis.host,
+        port: envConfig.redis.port,
+        password: envConfig.redis.password,
+        maxRetriesPerRequest: null,
+        enableReadyCheck: false,
+        lazyConnect: true,
+        retryStrategy: (times: number) => {
+          if (times > 2) {
+            this.isRedisAvailable = false;
+            return null;
+          }
+          return Math.min(times * 200, 500);
+        },
+      });
+
+      this.redisClient.on('connect', () => {
+        this.isRedisAvailable = true;
+      });
+
+      this.redisClient.on('error', () => {
+        this.isRedisAvailable = false;
+      });
+
+      this.redisClient.connect().catch(() => {
+        this.isRedisAvailable = false;
+      });
+    } catch {
+      this.isRedisAvailable = false;
+    }
+  }
 
   /**
-   * Sinh state CSRF token an toàn kèm nonce gắn với browser session
+   * Sinh state CSRF token an toàn kèm nonce gắn với browser session (lưu Redis phân tán + fallback in-memory)
    */
-  generateState(customRedirectUri?: string, nonce?: string): string {
+  async generateState(customRedirectUri?: string, nonce?: string): Promise<string> {
     this.cleanExpiredStates();
     const state = crypto.randomBytes(32).toString('hex');
-    DiscordOAuthService.stateMap.set(state, {
+    const entry: OAuthStateEntry = {
       createdAt: Date.now(),
       redirectUri: customRedirectUri,
       nonce,
-    });
+    };
+
+    DiscordOAuthService.stateMap.set(state, entry);
+
+    if (this.isRedisAvailable && this.redisClient) {
+      try {
+        await this.redisClient.set(
+          `oauth_state:${state}`,
+          JSON.stringify(entry),
+          'EX',
+          DiscordOAuthService.STATE_TTL_SECONDS,
+        );
+      } catch (err) {
+        console.warn('[DiscordOAuthService] Lỗi lưu state vào Redis, sử dụng in-memory fallback:', err);
+      }
+    }
+
     return state;
   }
 
   /**
    * Xác thực state CSRF, so khớp nonce với browser cookie và tiêu thụ (dùng một lần)
    */
-  verifyAndConsumeState(state: string, expectedNonce?: string): { isValid: boolean; redirectUri?: string } {
+  async verifyAndConsumeState(
+    state: string,
+    expectedNonce?: string,
+  ): Promise<{ isValid: boolean; redirectUri?: string }> {
     this.cleanExpiredStates();
-    const entry = DiscordOAuthService.stateMap.get(state);
+
+    let entry: OAuthStateEntry | undefined;
+
+    // Ưu tiên đọc từ Redis phân tán nếu có
+    if (this.isRedisAvailable && this.redisClient) {
+      try {
+        const raw = await this.redisClient.get(`oauth_state:${state}`);
+        if (raw) {
+          entry = JSON.parse(raw) as OAuthStateEntry;
+          await this.redisClient.del(`oauth_state:${state}`);
+        }
+      } catch (err) {
+        console.warn('[DiscordOAuthService] Lỗi đọc state từ Redis, fallback in-memory:', err);
+      }
+    }
+
+    // Fallback sang in-memory Map
     if (!entry) {
-      return { isValid: false };
+      entry = DiscordOAuthService.stateMap.get(state);
     }
 
     // Xóa state ngay lập tức để chống replay attack
     DiscordOAuthService.stateMap.delete(state);
+
+    if (!entry) {
+      return { isValid: false };
+    }
 
     if (Date.now() - entry.createdAt > DiscordOAuthService.STATE_TTL_MS) {
       return { isValid: false };

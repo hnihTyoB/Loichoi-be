@@ -226,32 +226,107 @@ export class CreatorRepository {
 
     const skip = (page - 1) * limit;
 
-    const [users, total] = await prisma.$transaction([
-      prisma.user.findMany({
-        where,
-        select: {
-          id: true,
-          fullName: true,
-          username: true,
-          bio: true,
-          avatarUrl: true,
-          bannerUrl: true,
-          isCreator: true,
-          isFeaturedCreator: true,
-          createdAt: true,
-          _count: {
-            select: {
-              followers: true,
-              authoredThemes: { where: { status: 'PUBLISHED' } },
+    let users: Array<{
+      id: string;
+      fullName: string | null;
+      username: string | null;
+      bio: string | null;
+      avatarUrl: string | null;
+      bannerUrl: string | null;
+      isCreator: boolean;
+      isFeaturedCreator: boolean;
+      createdAt: Date;
+      _count: {
+        followers: number;
+        authoredThemes: number;
+      };
+    }>;
+    let total: number;
+
+    if (sort === 'TOP_DOWNLOADS') {
+      const searchClause = search
+        ? Prisma.sql`AND (u.full_name ILIKE ${'%' + search + '%'} OR u.username ILIKE ${'%' + search + '%'} OR u.bio ILIKE ${'%' + search + '%'})`
+        : Prisma.empty;
+      const featuredClause =
+        isFeatured !== undefined ? Prisma.sql`AND u.is_featured_creator = ${isFeatured}` : Prisma.empty;
+
+      const [orderedRows, totalCount] = await Promise.all([
+        prisma.$queryRaw<Array<{ id: string }>>`
+          SELECT u.id
+          FROM users u
+          LEFT JOIN keyboard_themes kt ON kt.created_by = u.id AND kt.status = 'PUBLISHED'
+          WHERE u.deleted_at IS NULL
+            AND u.username IS NOT NULL
+            AND u.is_creator = true
+            ${searchClause}
+            ${featuredClause}
+          GROUP BY u.id
+          ORDER BY COALESCE(SUM(kt.download_count), 0) DESC, u.created_at DESC
+          LIMIT ${limit} OFFSET ${skip};
+        `,
+        prisma.user.count({ where }),
+      ]);
+
+      total = totalCount;
+      const orderedIds = orderedRows.map((r) => r.id);
+
+      if (orderedIds.length > 0) {
+        const fetchedUsers = await prisma.user.findMany({
+          where: { id: { in: orderedIds } },
+          select: {
+            id: true,
+            fullName: true,
+            username: true,
+            bio: true,
+            avatarUrl: true,
+            bannerUrl: true,
+            isCreator: true,
+            isFeaturedCreator: true,
+            createdAt: true,
+            _count: {
+              select: {
+                followers: true,
+                authoredThemes: { where: { status: 'PUBLISHED' } },
+              },
             },
           },
-        },
-        orderBy,
-        skip,
-        take: limit,
-      }),
-      prisma.user.count({ where }),
-    ]);
+        });
+
+        const userMap = new Map(fetchedUsers.map((u) => [u.id, u]));
+        users = orderedIds.map((id) => userMap.get(id)).filter(Boolean) as typeof fetchedUsers;
+      } else {
+        users = [];
+      }
+    } else {
+      const [fetchedUsers, totalCount] = await prisma.$transaction([
+        prisma.user.findMany({
+          where,
+          select: {
+            id: true,
+            fullName: true,
+            username: true,
+            bio: true,
+            avatarUrl: true,
+            bannerUrl: true,
+            isCreator: true,
+            isFeaturedCreator: true,
+            createdAt: true,
+            _count: {
+              select: {
+                followers: true,
+                authoredThemes: { where: { status: 'PUBLISHED' } },
+              },
+            },
+          },
+          orderBy,
+          skip,
+          take: limit,
+        }),
+        prisma.user.count({ where }),
+      ]);
+      users = fetchedUsers;
+      total = totalCount;
+    }
 
     const userIds = users.map((u) => u.id);
 
@@ -319,10 +394,6 @@ export class CreatorRepository {
         },
       };
     });
-
-    if (sort === 'TOP_DOWNLOADS') {
-      dataWithStats.sort((a, b) => b.stats.downloadsCount - a.stats.downloadsCount);
-    }
 
     return {
       data: dataWithStats,
@@ -417,23 +488,92 @@ export class CreatorRepository {
       prisma.userFollow.count({ where }),
     ]);
 
-    const data = await Promise.all(
-      follows.map(async (f) => {
-        const stats = await this.getCreatorStats(f.following.id);
-        return {
-          id: f.following.id,
-          fullName: f.following.fullName,
-          username: f.following.username || '',
-          bio: f.following.bio,
-          avatarUrl: f.following.avatarUrl,
-          bannerUrl: f.following.bannerUrl,
-          isCreator: f.following.isCreator,
-          isFeaturedCreator: f.following.isFeaturedCreator,
-          stats,
-          followedAt: f.createdAt,
-        };
-      }),
-    );
+    const followingIds = follows.map((f) => f.following.id);
+
+    // Batch query aggregates for all followed creators in parallel (O(1) queries instead of N+1)
+    const [themeAggregates, followerAggregates, collectionAggregates] = followingIds.length > 0
+      ? await Promise.all([
+          prisma.keyboardTheme.groupBy({
+            by: ['createdBy'],
+            where: {
+              createdBy: { in: followingIds },
+              status: 'PUBLISHED',
+            },
+            _count: {
+              _all: true,
+            },
+            _sum: {
+              downloadCount: true,
+              likeCount: true,
+            },
+          }),
+          prisma.userFollow.groupBy({
+            by: ['followingId'],
+            where: {
+              followingId: { in: followingIds },
+            },
+            _count: {
+              _all: true,
+            },
+          }),
+          prisma.collection.groupBy({
+            by: ['userId'],
+            where: {
+              userId: { in: followingIds },
+              isPublic: true,
+            },
+            _count: {
+              _all: true,
+            },
+          }),
+        ])
+      : [[], [], []];
+
+    const themeStatsMap = new Map<string, { themesCount: number; downloadsCount: number; likesCount: number }>();
+    for (const item of themeAggregates) {
+      if (item.createdBy) {
+        themeStatsMap.set(item.createdBy, {
+          themesCount: item._count._all || 0,
+          downloadsCount: item._sum.downloadCount || 0,
+          likesCount: item._sum.likeCount || 0,
+        });
+      }
+    }
+
+    const followerStatsMap = new Map<string, number>();
+    for (const item of followerAggregates) {
+      followerStatsMap.set(item.followingId, item._count._all || 0);
+    }
+
+    const collectionStatsMap = new Map<string, number>();
+    for (const item of collectionAggregates) {
+      collectionStatsMap.set(item.userId, item._count._all || 0);
+    }
+
+    const data = follows.map((f) => {
+      const themeStats = themeStatsMap.get(f.following.id) || { themesCount: 0, downloadsCount: 0, likesCount: 0 };
+      const followersCount = followerStatsMap.get(f.following.id) || 0;
+      const collectionsCount = collectionStatsMap.get(f.following.id) || 0;
+
+      return {
+        id: f.following.id,
+        fullName: f.following.fullName,
+        username: f.following.username || '',
+        bio: f.following.bio,
+        avatarUrl: f.following.avatarUrl,
+        bannerUrl: f.following.bannerUrl,
+        isCreator: f.following.isCreator,
+        isFeaturedCreator: f.following.isFeaturedCreator,
+        stats: {
+          themesCount: themeStats.themesCount,
+          downloadsCount: themeStats.downloadsCount,
+          likesCount: themeStats.likesCount,
+          followersCount,
+          collectionsCount,
+        },
+        followedAt: f.createdAt,
+      };
+    });
 
     return {
       data,

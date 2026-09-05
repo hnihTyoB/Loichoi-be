@@ -2,13 +2,19 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../database/prisma.client';
 import { UserQueryDto } from './user.dto';
 
-const userSelect = {
+export const userSelect = {
   id: true,
   email: true,
   fullName: true,
+  username: true,
+  bio: true,
   avatarUrl: true,
+  bannerUrl: true,
   phoneNumber: true,
   isActive: true,
+  isCreator: true,
+  creatorStatus: true,
+  isFeaturedCreator: true,
   roleId: true,
   role: {
     select: {

@@ -502,8 +502,8 @@ export class AuthService {
     return newAvatarUrl;
   }
 
-  getDiscordAuthUrl(redirectUri?: string, nonce?: string): { url: string; state: string } {
-    const state = discordOAuthService.generateState(redirectUri, nonce);
+  async getDiscordAuthUrl(redirectUri?: string, nonce?: string): Promise<{ url: string; state: string }> {
+    const state = await discordOAuthService.generateState(redirectUri, nonce);
     const url = discordOAuthService.getAuthorizationUrl(state, redirectUri);
     return { url, state };
   }
@@ -514,7 +514,7 @@ export class AuthService {
     metadata?: { userAgent?: string; ipAddress?: string },
     expectedNonce?: string,
   ): Promise<LoginResponseDto & { returnUrl?: string }> {
-    const stateVerification = discordOAuthService.verifyAndConsumeState(state, expectedNonce);
+    const stateVerification = await discordOAuthService.verifyAndConsumeState(state, expectedNonce);
     if (!stateVerification.isValid) {
       throw new AppError('Mã trạng thái OAuth không hợp lệ, đã hết hạn hoặc không khớp phiên đăng nhập', 400, ERROR_CODE.OAUTH_STATE_INVALID);
     }

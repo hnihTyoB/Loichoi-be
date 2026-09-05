@@ -12,11 +12,23 @@ import { ERROR_CODE } from '../../common/errors/error-code';
 import { toSlug } from '../../common/helpers/slug.helper';
 import { AUDIT_ACTION, AUDIT_TARGET_TYPE } from '../../common/constants/audit-log.constant';
 import { FEATURE_FLAGS } from '../../common/constants/system-config.constant';
+import { PERMISSIONS } from '../../common/constants/permission.constant';
+import { ROLES } from '../../common/constants/role.constant';
 
 export class CollectionService {
   private readonly repository = new CollectionRepository();
   private readonly keyboardRepository = new KeyboardRepository();
   private readonly systemConfigService: SystemConfigService = systemConfigService;
+
+  private async ensureCollectionsEnabled() {
+    const isCollectionsEnabled = await this.systemConfigService.isFeatureEnabled(
+      FEATURE_FLAGS.COLLECTIONS_ENABLED,
+      true,
+    );
+    if (!isCollectionsEnabled) {
+      throw new AppError('Tính năng Bộ sưu tập tạm thời bị vô hiệu hóa', 403, ERROR_CODE.FEATURE_DISABLED);
+    }
+  }
 
   async findManagementList(query: CollectionManagementQueryDto) {
     return this.repository.findManagementList(query);
@@ -27,11 +39,19 @@ export class CollectionService {
   }
 
   async findPublicBySlug(slug: string) {
-    const col = await this.repository.findPublicBySlug(slug);
-    if (!col) {
+    const collection = await this.repository.findPublicBySlug(slug);
+    if (!collection) {
       throw new AppError('Bộ sưu tập không tồn tại hoặc ở chế độ riêng tư', 404, ERROR_CODE.COLLECTION_NOT_FOUND);
     }
-    return col;
+    return collection;
+  }
+
+  async findById(id: string) {
+    const collection = await this.repository.findById(id);
+    if (!collection) {
+      throw new AppError('Bộ sưu tập không tồn tại', 404, ERROR_CODE.COLLECTION_NOT_FOUND);
+    }
+    return collection;
   }
 
   async create(
@@ -39,37 +59,20 @@ export class CollectionService {
     userId: string,
     metadata?: { ipAddress?: string; userAgent?: string },
   ) {
-    const isCollectionsEnabled = await this.systemConfigService.isFeatureEnabled(
-      FEATURE_FLAGS.COLLECTIONS_ENABLED,
-      true,
-    );
+    await this.ensureCollectionsEnabled();
 
-    if (!isCollectionsEnabled) {
-      throw new AppError('Tính năng Bộ sưu tập tạm thời bị vô hiệu hóa', 403, ERROR_CODE.FEATURE_DISABLED);
+    let slug = toSlug(data.slug || data.name);
+    const existing = await this.repository.findBySlug(slug);
+    if (existing) {
+      slug = `${slug}-${Date.now().toString(36)}`;
     }
 
-    const slug = data.slug ? toSlug(data.slug) : toSlug(data.name);
-
-    if (!slug) {
-      throw new AppError('Không thể tạo định danh (slug) hợp lệ từ tên bộ sưu tập', 400, ERROR_CODE.VALIDATION_ERROR);
-    }
-
-    const existingSlug = await this.repository.findBySlug(slug);
-    if (existingSlug) {
-      throw new AppError('Đường dẫn định danh (slug) của bộ sưu tập đã tồn tại', 409, ERROR_CODE.COLLECTION_SLUG_EXISTS);
-    }
-
-    // Xác thực các theme nếu có truyền themeIds (Batch query chống N+1)
-    if (data.themeIds && data.themeIds.length > 0) {
-      const validThemes = await this.keyboardRepository.findByIds(data.themeIds);
-      if (validThemes.length !== data.themeIds.length) {
-        throw new AppError('Một hoặc nhiều theme không tồn tại hoặc chưa được phát hành', 400, ERROR_CODE.THEME_NOT_FOUND);
-      }
-    }
-
-    const col = await this.repository.create({
-      ...data,
+    const collection = await this.repository.create({
+      name: data.name,
       slug,
+      description: data.description,
+      coverUrl: data.coverUrl,
+      isPublic: data.isPublic ?? true,
       userId,
     });
 
@@ -77,13 +80,13 @@ export class CollectionService {
       actorId: userId,
       action: AUDIT_ACTION.CREATE_COLLECTION,
       targetType: AUDIT_TARGET_TYPE.COLLECTION,
-      targetId: col.id,
-      details: { name: col.name, slug: col.slug, isPublic: col.isPublic },
+      targetId: collection.id,
+      details: { name: collection.name, slug: collection.slug, isPublic: collection.isPublic },
       ipAddress: metadata?.ipAddress,
       userAgent: metadata?.userAgent,
     });
 
-    return this.findPublicBySlug(col.slug);
+    return this.findPublicBySlug(collection.slug);
   }
 
   async update(
@@ -92,13 +95,19 @@ export class CollectionService {
     userId: string,
     userRole?: string,
     metadata?: { ipAddress?: string; userAgent?: string },
+    userPermissions?: string[],
   ) {
     const existing = await this.repository.findById(id);
     if (!existing) {
       throw new AppError('Bộ sưu tập không tồn tại', 404, ERROR_CODE.COLLECTION_NOT_FOUND);
     }
 
-    if (existing.userId !== userId && userRole !== 'ADMIN') {
+    const canManageAll =
+      userRole === ROLES.ADMIN ||
+      userRole === 'ADMIN' ||
+      Boolean(userPermissions?.includes(PERMISSIONS.COLLECTION_UPDATE));
+
+    if (existing.userId !== userId && !canManageAll) {
       throw new AppError('Bạn không có quyền chỉnh sửa bộ sưu tập này', 403, ERROR_CODE.NOT_COLLECTION_OWNER);
     }
 
@@ -114,8 +123,8 @@ export class CollectionService {
     }
 
     const updatePayload = { ...data };
-    // Privilege Escalation Protection: Chỉ Admin mới có quyền gán isFeatured
-    if (userRole !== 'ADMIN') {
+    // Privilege Escalation Protection: Chỉ Admin hoặc user có quyền COLLECTION_UPDATE mới được gán isFeatured
+    if (!canManageAll) {
       delete updatePayload.isFeatured;
     }
 
@@ -145,13 +154,19 @@ export class CollectionService {
     userId: string,
     userRole?: string,
     metadata?: { ipAddress?: string; userAgent?: string },
+    userPermissions?: string[],
   ) {
     const existing = await this.repository.findById(id);
     if (!existing) {
       throw new AppError('Bộ sưu tập không tồn tại', 404, ERROR_CODE.COLLECTION_NOT_FOUND);
     }
 
-    if (existing.userId !== userId && userRole !== 'ADMIN') {
+    const canDeleteAll =
+      userRole === ROLES.ADMIN ||
+      userRole === 'ADMIN' ||
+      Boolean(userPermissions?.includes(PERMISSIONS.COLLECTION_DELETE));
+
+    if (existing.userId !== userId && !canDeleteAll) {
       throw new AppError('Bạn không có quyền xóa bộ sưu tập này', 403, ERROR_CODE.NOT_COLLECTION_OWNER);
     }
 
@@ -179,13 +194,19 @@ export class CollectionService {
     userId?: string,
     userRole?: string,
     metadata?: { ipAddress?: string; userAgent?: string },
+    userPermissions?: string[],
   ) {
     const existing = await this.repository.findById(collectionId);
     if (!existing) {
       throw new AppError('Bộ sưu tập không tồn tại', 404, ERROR_CODE.COLLECTION_NOT_FOUND);
     }
 
-    if (userId && existing.userId !== userId && userRole !== 'ADMIN') {
+    const canManageAll =
+      userRole === ROLES.ADMIN ||
+      userRole === 'ADMIN' ||
+      Boolean(userPermissions?.includes(PERMISSIONS.COLLECTION_UPDATE));
+
+    if (userId && existing.userId !== userId && !canManageAll) {
       throw new AppError('Bạn không có quyền chỉnh sửa bộ sưu tập này', 403, ERROR_CODE.NOT_COLLECTION_OWNER);
     }
 
@@ -229,13 +250,19 @@ export class CollectionService {
     userId?: string,
     userRole?: string,
     metadata?: { ipAddress?: string; userAgent?: string },
+    userPermissions?: string[],
   ) {
     const existing = await this.repository.findById(collectionId);
     if (!existing) {
       throw new AppError('Bộ sưu tập không tồn tại', 404, ERROR_CODE.COLLECTION_NOT_FOUND);
     }
 
-    if (userId && existing.userId !== userId && userRole !== 'ADMIN') {
+    const canManageAll =
+      userRole === ROLES.ADMIN ||
+      userRole === 'ADMIN' ||
+      Boolean(userPermissions?.includes(PERMISSIONS.COLLECTION_UPDATE));
+
+    if (userId && existing.userId !== userId && !canManageAll) {
       throw new AppError('Bạn không có quyền chỉnh sửa bộ sưu tập này', 403, ERROR_CODE.NOT_COLLECTION_OWNER);
     }
 

@@ -323,7 +323,7 @@ export class AuthController {
 
       // Generate random nonce to bind OAuth state with browser cookie
       const nonce = crypto.randomBytes(16).toString('hex');
-      const result = this.service.getDiscordAuthUrl(safeReturnUrl, nonce);
+      const result = await this.service.getDiscordAuthUrl(safeReturnUrl, nonce);
 
       res.cookie('discord_oauth_nonce', nonce, getCookieOptions(5 * 60 * 1000));
 

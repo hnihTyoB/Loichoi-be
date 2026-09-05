@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { CollectionService } from './collection.service';
+import { permissionCacheService } from '../../common/services/permission-cache.service';
 import {
   CollectionQueryDto,
   CollectionManagementQueryDto,
@@ -10,6 +11,17 @@ import {
 
 export class CollectionController {
   private readonly service = new CollectionService();
+
+  private async getUserPermissions(req: Request): Promise<string[]> {
+    if (Array.isArray(req.user?.permissions)) {
+      return req.user.permissions;
+    }
+    if (req.user?.roleId) {
+      const perms = await permissionCacheService.getRolePermissions(req.user.roleId);
+      return Array.from(perms);
+    }
+    return [];
+  }
 
   findManagementList = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -75,12 +87,13 @@ export class CollectionController {
       const body = req.body as UpdateCollectionDto;
       const userId = req.user!.id;
       const userRole = req.user?.role;
+      const userPermissions = await this.getUserPermissions(req);
       const metadata = {
         ipAddress: req.ip,
         userAgent: req.headers['user-agent'],
       };
 
-      const data = await this.service.update(id, body, userId, userRole, metadata);
+      const data = await this.service.update(id, body, userId, userRole, metadata, userPermissions);
       res.json({
         success: true,
         data,
@@ -95,12 +108,13 @@ export class CollectionController {
       const id = req.params.id;
       const userId = req.user!.id;
       const userRole = req.user?.role;
+      const userPermissions = await this.getUserPermissions(req);
       const metadata = {
         ipAddress: req.ip,
         userAgent: req.headers['user-agent'],
       };
 
-      const result = await this.service.delete(id, userId, userRole, metadata);
+      const result = await this.service.delete(id, userId, userRole, metadata, userPermissions);
       res.json({
         success: true,
         ...result,
@@ -116,6 +130,7 @@ export class CollectionController {
       const body = req.body as AddCollectionItemDto;
       const userId = req.user!.id;
       const userRole = req.user?.role;
+      const userPermissions = await this.getUserPermissions(req);
       const metadata = {
         ipAddress: req.ip,
         userAgent: req.headers['user-agent'],
@@ -128,6 +143,7 @@ export class CollectionController {
         userId,
         userRole,
         metadata,
+        userPermissions,
       );
       res.status(201).json({
         success: true,
@@ -144,6 +160,7 @@ export class CollectionController {
       const themeId = req.params.themeId;
       const userId = req.user!.id;
       const userRole = req.user?.role;
+      const userPermissions = await this.getUserPermissions(req);
       const metadata = {
         ipAddress: req.ip,
         userAgent: req.headers['user-agent'],
@@ -155,6 +172,7 @@ export class CollectionController {
         userId,
         userRole,
         metadata,
+        userPermissions,
       );
       res.json({
         success: true,

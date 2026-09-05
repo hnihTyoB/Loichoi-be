@@ -166,6 +166,7 @@ export class WebhookWorker {
         },
         body: payloadString,
         signal: controller.signal,
+        redirect: 'manual',
       });
 
       statusCode = res.status;
@@ -173,6 +174,10 @@ export class WebhookWorker {
         responseText = (await res.text()).slice(0, 1000);
       } catch {
         responseText = '';
+      }
+
+      if (statusCode >= 300 && statusCode < 400) {
+        throw new Error(`Webhook receiver responded with HTTP redirect (${statusCode}), which is disallowed for security reasons`);
       }
 
       if (res.ok) {

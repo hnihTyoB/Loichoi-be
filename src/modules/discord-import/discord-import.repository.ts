@@ -321,4 +321,66 @@ export class DiscordImportRepository {
 
     return result;
   }
+
+  async resetAllImports(): Promise<{ draftsDeleted: number; jobsDeleted: number; threadsDeleted: number }> {
+    const [drafts, jobs, threads] = await this.prisma.$transaction([
+      this.prisma.keyboardDraft.deleteMany({}),
+      this.prisma.importJob.deleteMany({}),
+      this.prisma.discordThread.deleteMany({}),
+    ]);
+    return {
+      draftsDeleted: drafts.count,
+      jobsDeleted: jobs.count,
+      threadsDeleted: threads.count,
+    };
+  }
+
+  async findKeyboardBySlug(slug: string): Promise<{ id: string; name: string } | null> {
+    return this.prisma.keyboardTheme.findUnique({
+      where: { slug },
+      select: { id: true, name: true },
+    });
+  }
+
+  async findKeyboardById(id: string): Promise<{ id: string; slug: string } | null> {
+    return this.prisma.keyboardTheme.findUnique({
+      where: { id },
+      select: { id: true, slug: true },
+    });
+  }
+
+  async getDefaultTaxonomies(): Promise<{
+    defaultCategoryId?: string;
+    defaultColorIds: string[];
+    defaultStyleId?: string;
+  }> {
+    const [defaultCat, defaultCols, defaultSty] = await Promise.all([
+      this.prisma.category.findFirst({ select: { id: true } }),
+      this.prisma.color.findMany({ take: 2, select: { id: true } }),
+      this.prisma.style.findFirst({ select: { id: true } }),
+    ]);
+    return {
+      defaultCategoryId: defaultCat?.id,
+      defaultColorIds: defaultCols.map((c) => c.id),
+      defaultStyleId: defaultSty?.id,
+    };
+  }
+
+  async createAuditLog(data: {
+    actorId: string;
+    action: string;
+    targetType: string;
+    targetId: string;
+    details?: any;
+  }): Promise<void> {
+    await this.prisma.auditLog.create({
+      data: {
+        actorId: data.actorId,
+        action: data.action,
+        targetType: data.targetType,
+        targetId: data.targetId,
+        details: data.details,
+      },
+    });
+  }
 }

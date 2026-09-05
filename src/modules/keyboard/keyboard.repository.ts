@@ -737,14 +737,13 @@ export class KeyboardRepository {
         await tx.keyboardLike.delete({
           where: { id: existing.id },
         });
-        const updated = await tx.keyboardTheme.update({
-          where: { id: keyboardThemeId },
-          data: {
-            likeCount: { decrement: 1 },
-          },
-          select: { likeCount: true },
-        });
-        return { liked: false, likeCount: Math.max(0, updated.likeCount) };
+        const updatedRows = await tx.$queryRaw<Array<{ like_count: number }>>`
+          UPDATE keyboard_themes
+          SET like_count = GREATEST(0, like_count - 1)
+          WHERE id = ${keyboardThemeId}::uuid
+          RETURNING like_count;
+        `;
+        return { liked: false, likeCount: Number(updatedRows[0]?.like_count ?? 0) };
       } else {
         await tx.keyboardLike.create({
           data: {

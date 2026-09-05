@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
+import { isThemeDownloadUrl } from '../../common/constants/keyboard.constant';
 
 extendZodWithOpenApi(z);
 
@@ -96,7 +97,13 @@ export const UpdateDraftSchema = z
     description: z.string().max(500).optional(),
     platform: z.enum(['IOS', 'ANDROID', 'BOTH']).optional(),
     downloadSource: z.enum(['GOOGLE_DRIVE', 'DISCORD_ATTACHMENT']).optional(),
-    downloadUrl: z.string().url().optional(),
+    downloadUrl: z
+      .string()
+      .url()
+      .refine((url) => isThemeDownloadUrl(url), {
+        message: 'Đường dẫn tải theme phải là link Google Drive hoặc Discord attachment hợp lệ',
+      })
+      .optional(),
     suggestedCategoryIds: z.array(z.string().uuid()).max(3).optional(),
     suggestedColorIds: z.array(z.string().uuid()).max(3).optional(),
     suggestedStyleIds: z.array(z.string().uuid()).max(3).optional(),

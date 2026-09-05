@@ -80,8 +80,9 @@ export class CreatorController {
   getUserFollowing = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const currentUserId = req.user!.id;
-      const page = req.query.page ? Number(req.query.page) : 1;
-      const limit = req.query.limit ? Number(req.query.limit) : 20;
+      const query = req.query as unknown as { page?: number; limit?: number };
+      const page = query.page ?? 1;
+      const limit = query.limit ?? 20;
 
       const result = await this.service.getUserFollowing(currentUserId, page, limit);
       res.json({

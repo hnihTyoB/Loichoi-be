@@ -44,16 +44,16 @@ export class StudioRepository {
           status: true,
         },
       }),
-      prisma.download.findMany({
-        where: {
-          theme: { createdBy: userId },
-          createdAt: { gte: thirtyDaysAgo },
-        },
-        select: {
-          createdAt: true,
-        },
-        orderBy: { createdAt: 'asc' },
-      }),
+      prisma.$queryRaw<Array<{ date: string; count: number }>>`
+        SELECT TO_CHAR(d.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD') AS date,
+               COUNT(*)::int AS count
+        FROM downloads d
+        JOIN keyboard_themes kt ON kt.id = d.keyboard_theme_id
+        WHERE kt.created_by = ${userId}::uuid
+          AND d.created_at >= ${thirtyDaysAgo}
+        GROUP BY 1
+        ORDER BY 1 ASC;
+      `,
     ]);
 
     // Nhóm lượt tải theo từng ngày (YYYY-MM-DD) theo múi giờ chuẩn VN UTC+7
@@ -65,12 +65,9 @@ export class StudioRepository {
       downloadsByDate[dateStr] = 0;
     }
 
-    for (const dl of recentDownloads) {
-      const dateStr = formatVietnamDate(dl.createdAt);
-      if (downloadsByDate[dateStr] !== undefined) {
-        downloadsByDate[dateStr]++;
-      } else {
-        downloadsByDate[dateStr] = 1;
+    for (const row of recentDownloads) {
+      if (downloadsByDate[row.date] !== undefined) {
+        downloadsByDate[row.date] = row.count;
       }
     }
 

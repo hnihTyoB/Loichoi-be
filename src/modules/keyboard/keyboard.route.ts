@@ -30,6 +30,7 @@ const downloadRateLimiter = createRateLimiter({
 router.post(
   '/upload-url',
   authMiddleware,
+  requirePermission(PERMISSIONS.KEYBOARD_CREATE),
   validate(getThemeImageUploadUrlSchema),
   keyboardController.getImageUploadUrl,
 );
@@ -37,6 +38,7 @@ router.post(
 router.post(
   '/batch-upload-urls',
   authMiddleware,
+  requirePermission(PERMISSIONS.KEYBOARD_CREATE),
   validate(getThemeBatchImageUploadUrlsSchema),
   keyboardController.getBatchImageUploadUrls,
 );

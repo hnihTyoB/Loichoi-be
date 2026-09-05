@@ -22,12 +22,21 @@ export interface UpdateUserDto {
 export interface UserResponseDto {
   id: string;
   email: string;
+  fullName?: string | null;
+  username?: string | null;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  bannerUrl?: string | null;
+  phoneNumber?: string | null;
   roleId: string;
   role?: {
     id: string;
     name: string;
   };
   isActive: boolean;
+  isCreator?: boolean;
+  creatorStatus?: string;
+  isFeaturedCreator?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

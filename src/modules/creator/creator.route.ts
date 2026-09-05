@@ -8,6 +8,7 @@ import {
   creatorQuerySchema,
   creatorApplicationQuerySchema,
   rejectCreatorApplicationSchema,
+  creatorFollowingQuerySchema,
 } from './creator.validation';
 import { keyboardPublicQuerySchema, userIdParamSchema } from '../keyboard/keyboard.validation';
 import { PERMISSIONS } from '../../common/constants/permission.constant';
@@ -51,6 +52,7 @@ router.post(
 router.get(
   '/me/following',
   authMiddleware,
+  validate(creatorFollowingQuerySchema, 'query'),
   creatorController.getUserFollowing,
 );
 
